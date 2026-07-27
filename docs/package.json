@@ -12,7 +12,7 @@
     "react-dom": "^19",
     "@mdx-js/react": "3.0.1",
     "@zuplo/zudoku-plugin-monetization": "^0.0",
-    "zudoku": "^0.77"
+    "zudoku": "^0.82"
   },
   "devDependencies": {
     "@types/node": "^22",
