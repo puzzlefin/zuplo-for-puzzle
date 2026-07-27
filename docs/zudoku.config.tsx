@@ -15,43 +15,9 @@ const config: ZudokuConfig = {
   },
   navigation: [
     {
-      type: "category",
-      label: "Documentation",
-      items: [
-        {
-          type: "category",
-          label: "Getting Started",
-          icon: "sparkles",
-          items: [
-            {
-              type: "doc",
-              file: "introduction",
-            },
-            {
-              type: "doc",
-              file: "markdown",
-            },
-          ],
-        },
-        {
-          type: "category",
-          label: "Useful Links",
-          collapsible: false,
-          icon: "link",
-          items: [
-            {
-              type: "link",
-              label: "Zuplo Docs",
-              to: "https://zuplo.com/docs/dev-portal/introduction",
-            },
-            {
-              type: "link",
-              label: "Developer Portal Docs",
-              to: "https://zuplo.com/docs/dev-portal/introduction",
-            },
-          ],
-        },
-      ],
+      type: "doc",
+      file: "introduction",
+      label: "Getting Started",
     },
     {
       type: "link",
@@ -69,21 +35,11 @@ const config: ZudokuConfig = {
       path: "api",
     },
   ],
-  authentication: {
-    // IMPORTANT: This is a demo Auth0 configuration.
-    // In a real application, you should replace these values with your own
-    // identity provider's configuration.
-    // This configuration WILL NOT WORK with custom domains.
-    // For more information, see:
-    // https://zuplo.com/docs/dev-portal/zudoku/configuration/authentication
-    type: "auth0",
-    domain: "auth.zuplo.site",
-    clientId: "f8I87rdsCRo4nU2FHf0fHVwA9P7xi7Ml",
-    audience: "https://api.example.com/",
-  },
-  apiKeys: {
-    enabled: true,
-  },
+  // No portal sign-in for now: the docs are fully public, and API calls
+  // authenticate with OAuth bearer tokens (see Getting Started). When
+  // sign-in-powered features (playground auth, self-service keys) land,
+  // restore an `authentication` block with Puzzle's real Auth0 app — see
+  // the zuplo-gateway repo's dev branch for the prior art.
 };
 
 export default config;
