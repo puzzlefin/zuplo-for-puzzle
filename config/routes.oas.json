@@ -1,0 +1,9 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Puzzle API Gateway",
+    "description": "Zuplo gateway configuration for the Puzzle external API. Routes added here are served by the Zuplo edge gateway."
+  },
+  "paths": {}
+}
