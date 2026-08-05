@@ -1,0 +1,564 @@
+---
+sidebar_label: Cash Activity Statement API Endpoint
+---
+
+# Cash Activity Statement API Endpoint
+
+## 1. Introduction
+
+The Cash Activity Statement endpoint provides programmatic access to a company's cash flow statement. This endpoint returns cash activity data organized by configurable time intervals (month, quarter, year, or totals), showing how cash moves through the business across operating, investing, and financing activities. The data is returned in a structured format that preserves the hierarchical relationship between accounts and rollup categories.
+
+**Endpoint:** `GET /v0/company/:id/statements/cashActivity`
+
+**Required Scope:** `read:company`
+
+**Base URL:** Your API base URL + `/rest`
+
+---
+
+## 2. Expected Input
+
+This is a GET endpoint that accepts parameters as query parameters.
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | The external ID of the company |
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `interval` | string | No | `month` | Time interval grouping. Accepts: `month`, `quarter`, `year`, `totals` |
+| `startPeriod` | string | No | Auto-inferred | Start period in format matching the interval type (see Auto-completion section) |
+| `endPeriod` | string | No | Auto-inferred | End period in format matching the interval type (see Auto-completion section) |
+| `dateMacro` | string | No | - | Predefined date range. Cannot be used with `startPeriod`/`endPeriod`. See available options below |
+
+**Note:** Cash Activity Statement is always on a **cash basis** - there is no `basis` parameter for this endpoint.
+
+### Period Format by Interval Type
+
+The format of `startPeriod` and `endPeriod` depends on the `interval` parameter:
+
+- **month**: `YYYY-MM` (e.g., `2024-01`)
+- **quarter**: `YYYY-QN` (e.g., `2024-Q1`, `2024-Q2`)
+- **year**: `YYYY` (e.g., `2024`)
+- **totals**: Period format not relevant (all data aggregated)
+
+### Available DateMacro Values
+
+- `CurrentMonth` - Current calendar month
+- `LastFullMonth` - Previous complete month
+- `LastThreeMonths` - Last 3 months including current
+- `LastThreeFullMonths` - Previous 3 complete months
+- `CurrentYear` - Current calendar year
+- `LastYear` - Previous calendar year
+- `QuarterToDate` - Current quarter from start to current date
+- `YearToDate` - Current year from start to current date
+
+### Example Requests
+
+#### Basic request with month intervals
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=month&startPeriod=2024-01&endPeriod=2024-03`
+
+#### Using date macro
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=month&dateMacro=YearToDate`
+
+#### Quarterly cash activity report
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=quarter&startPeriod=2024-Q1&endPeriod=2024-Q4`
+
+#### Annual cash activity summary
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=year&startPeriod=2023&endPeriod=2024`
+
+## 2.1 Input Validations
+
+The endpoint enforces the following validation rules:
+
+### DateMacro vs Period Parameters
+
+- `dateMacro` **cannot be combined** with `startPeriod` or `endPeriod`
+- If both are provided, error: `"Cannot use dateMacro with startPeriod/endPeriod"`
+
+### Period Format Validation
+
+- Period format **must match** the specified `interval` type:
+  - `interval=month` requires month format: `YYYY-MM`
+  - `interval=quarter` requires quarter format: `YYYY-QN`
+  - `interval=year` requires year format: `YYYY`
+- Invalid format returns error: `"Invalid period format: [period]"`
+
+### Period Range Validation
+
+- `startPeriod` must be **before or equal to** `endPeriod`
+- Comparison logic respects the period type (month, quarter, year)
+- Error: `"startPeriod must be before or equal to endPeriod"`
+
+### Interval Validation
+
+- Unsupported interval values return error: `"Interval [value] is unsupported"`
+- Valid values: `month`, `quarter`, `year`, `totals` (case-insensitive)
+
+---
+
+## 2.2 Auto-completion Behavior for startPeriod and endPeriod
+
+When `dateMacro` is not used, the endpoint automatically infers missing period values:
+
+### startPeriod Auto-completion
+
+If `startPeriod` is **not provided**, the system infers it using this precedence:
+
+1. **Company's `startIngestionDate`**: If the company has a configured start ingestion date, this date is converted to the appropriate period format
+2. **First Transaction Date**: If no start ingestion date exists, the system queries for the company's first transaction and uses its timestamp
+3. **Error**: If no transactions exist and no start ingestion date is configured, returns error: `"Can't infer start period for company because no transactions have been ingested"`
+
+The inferred date is converted to a period based on the company's timezone and the requested interval type.
+
+### endPeriod Auto-completion
+
+If `endPeriod` is **not provided**, it defaults to:
+
+- **Current month** (as of the request time, in the company's timezone)
+- Calculated using `endOfMonth()` for the current date in the company's timezone
+
+### Period Normalization
+
+After determining `startPeriod` and `endPeriod`:
+
+- Both periods are converted to their **full month range equivalents**
+- Examples:
+  - Quarter `2024-Q1` → start: `2024-01`, end: `2024-03`
+  - Year `2024` → start: `2024-01`, end: `2024-12`
+  - Month `2024-03` → start: `2024-03`, end: `2024-03`
+
+- This normalization ensures consistent internal processing regardless of the requested interval granularity
+
+### Example Scenarios
+
+**Scenario 1: Both periods omitted**
+
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=month`
+- `startPeriod` → Inferred from company's startIngestionDate or first transaction
+- `endPeriod` → Current month (e.g., `2024-11` if called in November 2024)
+
+**Scenario 2: Only endPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=quarter&endPeriod=2024-Q4`
+- `startPeriod` → Inferred from company data
+- `endPeriod` → `2024-Q4` (as provided)
+
+**Scenario 3: Only startPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/cashActivity?interval=year&startPeriod=2023`
+- `startPeriod` → `2023` (as provided)
+- `endPeriod` → Current month (e.g., `2024-11`)
+
+---
+
+## 3. Output Example
+
+The response is a JSON object containing two main arrays: `columns` and `lines`.
+
+### Response Structure
+```
+{
+  "columns": [
+    {
+      "key": "2024-01",
+      "label": "2024-01",
+      "dateRange": {
+        "start": "2024-01-01",
+        "end": "2024-01-31"
+      }
+    },
+    {
+      "key": "2024-02",
+      "label": "2024-02",
+      "dateRange": {
+        "start": "2024-02-01",
+        "end": "2024-02-29"
+      }
+    },
+    {
+      "key": "2024-03",
+      "label": "2024-03",
+      "dateRange": {
+        "start": "2024-03-01",
+        "end": "2024-03-31"
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "title": "Cash from Operating Activities",
+      "values": [
+        {
+          "balance": "75000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "82000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "78000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+        "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+      "title": "Customer Receipts",
+      "values": [
+        {
+          "balance": "150000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "165000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "158000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": "d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
+      "parentId": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "childIds": [],
+      "lineType": "account"
+    },
+    {
+      "id": "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8",
+      "title": "Payments to Vendors",
+      "values": [
+        {
+          "balance": "-75000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "-83000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "-80000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": "e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
+      "parentId": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "childIds": [],
+      "lineType": "account"
+    },
+    {
+      "id": "f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1",
+      "title": "Cash from Investing Activities",
+      "values": [
+        {
+          "balance": "-10000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "-15000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "-12000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3",
+      "title": "Cash from Financing Activities",
+      "values": [
+        {
+          "balance": "50000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "0.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "0.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5",
+      "title": "Net Change in Cash",
+      "values": [
+        {
+          "balance": "115000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "67000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "66000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [],
+      "lineType": "rollup"
+    }
+  ]
+}
+```
+
+### Response Fields
+
+#### Columns Array
+
+Each column represents a time period in the cash activity statement:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string | Unique identifier for the column (period string) |
+| `label` | string | Display label for the column |
+| `dateRange` | object | ISO 8601 date range for the period |
+| `dateRange.start` | string | Start date (inclusive) in format `YYYY-MM-DD` |
+| `dateRange.end` | string | End date (inclusive) in format `YYYY-MM-DD` |
+
+#### Lines Array
+
+Each line represents a cash flow category or account in the cash activity statement:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | MD5 hash (32-character hex string) uniquely identifying the line |
+| `title` | string | Display name of the account or category |
+| `values` | array | Array of cash flow values for each column |
+| `values[].balance` | string | Decimal amount as string (negative for cash outflows, positive for inflows) |
+| `values[].columnKey` | string | References the column's key |
+| `accountId` | string \| null | Id of the ledger account (null for rollups and groups) |
+| `parentId` | string \| null | MD5 hash of the parent line (null for top-level items) |
+| `childIds` | array | Array of MD5 hashes for child lines |
+| `lineType` | string | Type of line: `account`, `rollup`, `parent_account_group` |
+
+### Line Types
+
+- **`account`**: Individual ledger account with an `accountId`
+- **`rollup`**: Aggregated category (sum of child accounts)
+- **`parent_account_group`**: Parent grouping category
+
+### Notes
+
+- **All IDs** (`id`, `accountId`, `parentId`, `childIds`) are **MD5 hashes** (32-character hexadecimal strings)
+- Balances are returned as decimal strings to preserve precision
+- **Positive values** represent cash inflows (receipts, income)
+- **Negative values** represent cash outflows (payments, expenses)
+- The hierarchical structure is preserved through `parentId` and `childIds` relationships
+- Lines are ordered to reflect the standard cash flow statement layout:
+  - Operating Activities (day-to-day business operations)
+  - Investing Activities (purchase/sale of long-term assets)
+  - Financing Activities (debt, equity, dividends)
+  - Net Change in Cash (sum of all activities)
+- **Cash basis only** - This endpoint always uses cash accounting (no accrual option)
+
+---
+
+## 4. Understanding Cash Activity Statement Structure
+
+The Cash Activity Statement typically organizes cash flows into three main categories:
+
+### Operating Activities
+
+Cash flows from normal business operations:
+- Customer receipts (cash inflow)
+- Vendor payments (cash outflow)
+- Employee payroll (cash outflow)
+- Interest received/paid
+- Tax payments
+
+### Investing Activities
+
+Cash flows from buying or selling long-term assets:
+- Purchase of equipment (cash outflow)
+- Sale of property (cash inflow)
+- Investment purchases (cash outflow)
+- Investment sales (cash inflow)
+
+### Financing Activities
+
+Cash flows from debt, equity, and dividend transactions:
+- Loan proceeds (cash inflow)
+- Loan repayments (cash outflow)
+- Equity investments (cash inflow)
+- Dividend payments (cash outflow)
+
+### Net Change in Cash
+
+The sum of all three categories, representing the total change in cash for the period.
+
+---
+
+## 5. Retrieving Chart of Accounts
+
+The Chart of Accounts endpoint allows you to retrieve all ledger accounts for a company, including their balances, categories, and metadata. This is useful for understanding which accounts contribute to cash activity.
+
+### Chart of Accounts Endpoint
+
+**Endpoint:** `GET /v0/company/:id/chartOfAccounts`
+
+**Required Scope:** `read:company`
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `basis` | string | No | Accounting basis for balance calculation. For cash activity analysis, use `cash`. Default: `cash` |
+| `effectiveDate` | string | No | ISO 8601 date (`YYYY-MM-DD`) to retrieve accounts effective at that date |
+| `startDate` | string | No | ISO 8601 datetime to filter accounts updated after this timestamp |
+| `nominalCode` | string | No | Filter accounts by nominal code prefix |
+| `getRestricted` | boolean | No | Include historical/restricted COA keys. Default: `false` |
+
+### Request Examples
+
+#### Get all accounts with cash basis balances
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=cash`
+
+#### Get accounts effective on a specific date
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?effectiveDate=2024-01-31&basis=cash`
+
+#### Get accounts with cash balances, updated after a specific date
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=cash&startDate=2024-01-01T00:00:00Z`
+
+### Response Structure
+```
+{
+  "chartOfAccounts": {
+    "accounts": [
+      {
+        "id": "acc_1A2B3C4D5E6F7G8H9I0J",
+        "nominalCode": "1000",
+        "name": "Operating Cash",
+        "description": "Cash from business operations",
+        "type": "Asset",
+        "category": "Current Assets",
+        "subCategory": "Cash",
+        "tertiaryCategory": null,
+        "coaKeys": ["cash", "operating_cash"],
+        "restrictedCoaKeys": [],
+        "keywords": ["cash", "operating"],
+        "tags": ["asset", "cash"],
+        "parentCode": null,
+        "currentBalance": {
+          "amount": "250000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "250000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": true,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      }
+    ]
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | External ID of the ledger account |
+| `nominalCode` | string | Account code/number in the chart of accounts |
+| `name` | string | Display name of the account |
+| `description` | string \| null | Optional description of the account |
+| `type` | string | Account type (e.g., "Asset", "Liability", "Equity", "Income", "Expense") |
+| `category` | string | Primary category classification |
+| `subCategory` | string \| null | Secondary category classification |
+| `tertiaryCategory` | string \| null | Tertiary category classification |
+| `coaKeys` | array | Array of COA keys used for mapping transactions |
+| `restrictedCoaKeys` | array | Historical/deprecated COA keys (only if `getRestricted=true`) |
+| `keywords` | array | Search keywords associated with the account |
+| `tags` | array | Tags for additional categorization |
+| `parentCode` | string \| null | Nominal code of the parent account (if this is a sub-account) |
+| `currentBalance` | object | Current balance including sub-accounts |
+| `currentBalance.amount` | string | Balance amount as decimal string |
+| `currentBalance.currency` | string | Currency code (ISO 4217) |
+| `currentBalanceWithoutSubAccounts` | object | Balance excluding sub-account balances |
+| `isBankAccount` | boolean | Whether this account represents a bank account |
+| `views` | array | Applicable accounting views (`["cash"]`, `["accrual"]`, or `["cash", "accrual"]`) |
+| `currentness` | string \| null | Account status (e.g., "active", "archived") |
+
+### Relationship to Cash Activity Statement
+
+- The `accountId` field in cash activity lines references these account IDs
+- **Cash basis accounts only** - Use `basis=cash` when retrieving the chart of accounts for cash activity analysis
+- Bank accounts (`isBankAccount: true`) are particularly important for cash activity tracking
+- The `views` field indicates whether an account appears in cash basis reports
+- Account hierarchy is represented through the `parentCode` field
+
+### Important Notes
+
+- **Always use `basis=cash`** when retrieving accounts for cash activity analysis
+- The `effectiveDate` parameter shows the chart of accounts as it existed on that date (useful for historical reporting)
+- `restrictedCoaKeys` are only included when `getRestricted=true` and contain historical COA keys that should not be used for new transactions
+- Bank accounts and cash accounts are the primary focus for cash activity statements
+
+---
+
+## Error Responses
+
+Common error responses:
+```Date
+{
+  "error": "Cannot use dateMacro with startPeriod/endPeriod",
+  "statusCode": 400
+}
+```
+```Filter
+{
+  "error": "You cannot filter by more than one of each type at a time",
+  "statusCode": 400
+}
+```
+```DateFormat
+{
+  "error": "Invalid period format: 2024-13",
+  "statusCode": 400
+}
+```
+```Periods
+{
+  "error": "startPeriod must be before or equal to endPeriod",
+  "statusCode": 400
+}
+```
+```Periods
+{
+  "error": "Can't infer start period for company because no transactions have been ingested",
+  "statusCode": 400
+}
+```

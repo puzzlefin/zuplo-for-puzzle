@@ -1,0 +1,61 @@
+---
+sidebar_label: Transactions
+---
+
+# Transactions
+
+<br />
+
+The Puzzle API enables many common transaction workflows including bulk import and export, management of transaction documents, and categorization.
+
+***
+
+## Workflows
+
+### Import Transactions
+
+New Account Setup:
+
+1. Call **Create Financial Account** to create a new account for the transactions.
+2. Set a starting account balance with **Create Account Balance**.
+   * Note that account balances are stored trending towards positive; see the **Account Balance Guide**.
+
+Existing Accounts:
+
+1. Call **Create Transactions** with up to 500 transactions per request.
+2. Then **Create Document Attachment** for each transaction document.
+
+### Categorize Existing Transactions
+
+1. **Get Transactions** with the `status=NotCategorized` filter.
+2. **Update Transaction** with a categorization.
+   * Set `category` to help Puzzle automatically categorize the transaction.
+
+* Or set `coaKey` using a CoA Key from the **Chart of Accounts** to assign an exact account.
+* Set the `vendorId` or `customerId`.
+* Set `finalize` to `true` to finalize the transaction in the same request.
+
+### Manage Transaction Documents
+
+1. Call **Get Transaction** or **Get Transactions** to view existing documents.
+   * Use the returned `downloadInfo.signedUrl` to download documents.
+2. Use **Create Document Attachment** to attach a document to a transaction.
+
+***
+
+## Routes
+
+* **Create Financial Account**
+  * Create an account to organize transactions.
+* **Create Account Balance**
+  * Create a reference point in time for the account balance.
+* **Get Transactions**
+  * Get all transactions with optional filters.
+* **Get Transaction**
+  * Get a single transaction.
+* **Create Transactions**
+  * Create up to 500 transactions per request.
+* **Update Transaction**
+  * Update transaction fields or finalize the transaction.
+* **Create Document Attachment**
+  * Attach documents such as receipts to a transaction.

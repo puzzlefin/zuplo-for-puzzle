@@ -1,0 +1,215 @@
+---
+sidebar_label: One-Click Onboarding
+---
+
+# One-Click Onboarding
+
+# Accounting Integration Workflow
+
+***
+
+This guide explains how to use the Puzzle API to programmatically set up a company or connect to an existing company and complete the initial accounting integration. It outlines the steps to create a company and user.
+
+Note: You will need to have write enabled API keys.
+
+***
+
+## Workflow Overview
+
+This workflow covers how to create a new Puzzle company or connect to an existing one, then post journal entries for that company.
+
+1. **Call Create Company Endpoint**
+   * Call `POST /company` to create a new Puzzle company and associated user
+   * The response determines which scenario path to follow
+     * Scenario A - No Existing User
+       * `200: OK`
+     * Scenario B - Existing User, No Company
+       * `400: USER_ALREADY_EXISTS`
+     * Scenario C - Existing User, Existing Company
+       * `400: USER_AND_COMPANY_ALREADY_EXISTS`
+2. **Send User to Prefilled Onboarding** *(Scenario B only)*
+   * Direct the user to the Prefilled Onboarding endpoint to finish company creation
+3. **Authenticate**
+   * Use the OAuth 2.0 authorize flow to obtain an access token
+   * In Scenario A, shared key authentication may be used instead
+
+***
+
+## Flow Scenarios
+
+If the email used in the Create Company request already belongs to an existing Puzzle user, additional steps are required to complete the accounting integration. There are three possible scenarios:
+
+* **Scenario A – No Existing User**: The email is not associated with any user. Calling Create Company will create both a new user and a new company.
+* **Scenario B – Existing User, No Company**: The email is associated with an existing user, but that user is not linked to a company. You will need to send the user to the Prefilled Onboarding endpoint to finish creating their company.
+* **Scenario C – Existing User, Existing Company**: The email is associated with a user who already has a company. The user must log in to Puzzle via the Authorize endpoint to grant you access to their data.
+
+The required steps for each scenario are detailed below.
+
+### Scenario A – No Existing User
+
+**Workflow Steps: 1 → 3**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `200: OK`
+
+* Puzzle creates the user, company, and a push integration connection.
+
+Step 3: Authenticate with OAuth 2.0 *(optional, can use shared key auth)*
+
+### Scenario B – Existing User, No Existing Company
+
+**Workflow Steps: 1 → 2 → 3**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `400: USER_ALREADY_EXISTS`
+
+Step 2: Partner sends user to Prefilled Onboarding
+
+Step 3: Authenticate with OAuth 2.0
+
+### Scenario C – Existing User, Existing Company
+
+**Workflow Steps: 1 → 3**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `400: USER_AND_COMPANY_ALREADY_EXISTS`
+
+Step 3: Authenticate with OAuth 2.0
+
+***
+
+## Detailed Flow Steps
+
+***
+
+## 1.  Call Create Company Endpoint
+
+**Endpoint:** `POST /company`
+
+Creates a company, user, and integration connection. Returns a `setPasswordUrl` to allow the user to set a password which completes their Puzzle account setup.
+
+The `email` must be unique in Puzzle. You cannot use the same email to create multiple companies.
+
+**Response outcomes:**
+
+* `200 OK`: Proceed with Scenario A
+* `400 USER_ALREADY_EXISTS`: Proceed with Scenario B
+* `400 USER_AND_COMPANY_ALREADY_EXISTS`: Proceed with Scenario C
+
+Request Example:
+
+```json
+{
+  "user": {
+    "email": "test-user at company.io",
+    "firstName": "Test",
+    "lastName": "User"
+  },
+  "company": {
+    "name": "Test Company",
+    "type": "VirtualGoods",
+    "revenueModel": "AnnualSubscription",
+    "timeZone": "US/Alaska",
+    "currentUserRole": "Founder",
+    "coaType": "saas",
+    "orgType": "LLC"
+  }
+}
+```
+
+Response Example - 200:
+
+```json
+{
+  "companyId": "co_xxx",
+  "userId": "user_xxx",
+  "setPasswordUrl": "https://..."
+}
+```
+
+Response Example - 400:
+
+```json
+{
+  "errors": [
+    {
+      "message": "User already exists in Puzzle system",
+      "code": "USER_ALREADY_EXISTS"
+    }
+  ]
+}
+```
+
+Response Example - 400:
+
+```json
+{
+  "errors": [
+    {
+      "message": "User already exists in Puzzle system and belongs to a company",
+      "code": "USER_AND_COMPANY_ALREADY_EXISTS"
+    }
+  ]
+}
+```
+
+***
+
+## 2. Send User to Prefilled Onboarding (Scenario B only)
+
+**Endpoint:** `POST /onboarding`
+
+Returns a URL to redirect the user to complete company creation. The user must log in with the same email from Step 1.
+
+Request Example:
+
+```json
+{
+  "name": "Test Company",
+  "type": "VirtualGoods",
+  "revenueModel": "AnnualSubscription",
+  "timeZone": "US/Alaska",
+  "currentUserRole": "Founder",
+  "coaType": "saas",
+  "orgType": "LLC"
+}
+```
+
+Response Example:
+
+```json
+{
+  "url": "https://..."
+}
+```
+
+***
+
+## **3. Authenticate**
+
+### OAuth 2.0 Authentication (Preferred)
+
+OAuth is required for Scenarios B and C. OAuth is the preferred authentication method. It requires a logged in user.
+
+**Usage:**
+
+1. Call the `Authorize` endpoint with your `client_id` and `redirect_uri`.
+2. After user has logged and approved data sharing with Puzzle, a `code` parameter will be returned in the redirect URI.
+3. Exchange the `code` at the `Access Token` endpoint to obtain a bearer token.
+4. Include the bearer token in subsequent requests: `Authorization: Bearer <token>`
+
+### Shared Key Authentication
+
+This method is appropriate for server-to-server communication and flows that do not require a logged-in user. It cannot be used with the `/me` endpoint.
+
+**Usage:**
+
+* Add the following request header: `puzzle-client-id: {{clientId}}`
+* Set the authorization header: `Authorization: Bearer {{clientSecret}}`
+
+***
+
+<br />

@@ -15,9 +15,49 @@ const config: ZudokuConfig = {
   },
   navigation: [
     {
-      type: "doc",
-      file: "introduction",
+      type: "category",
       label: "Getting Started",
+      items: [
+        { type: "doc", file: "welcome" },
+        { type: "doc", file: "what-is-puzzle" },
+        { type: "doc", file: "getting-started" },
+        { type: "doc", file: "scopes" },
+        { type: "doc", file: "errors" },
+      ],
+    },
+    {
+      type: "category",
+      label: "Onboarding",
+      items: [
+        { type: "doc", file: "use-cases" },
+        { type: "doc", file: "embedding-puzzle" },
+        { type: "doc", file: "one-click-onboarding" },
+        { type: "doc", file: "one-click-onboarding-with-journal-entry-sync" },
+        { type: "doc", file: "accounting-integration" },
+      ],
+    },
+    {
+      type: "category",
+      label: "Guides",
+      items: [
+        { type: "doc", file: "bookkeeping" },
+        { type: "doc", file: "accounts-payable" },
+        { type: "doc", file: "accounts-receivable" },
+        { type: "doc", file: "payroll" },
+        { type: "doc", file: "transactions" },
+        { type: "doc", file: "account-balances" },
+        { type: "doc", file: "write-api" },
+      ],
+    },
+    {
+      type: "category",
+      label: "Reports & Metrics",
+      items: [
+        { type: "doc", file: "balance-sheet" },
+        { type: "doc", file: "income-statements" },
+        { type: "doc", file: "cash-activity" },
+        { type: "doc", file: "metric-formulas" },
+      ],
     },
     {
       type: "link",
@@ -25,7 +65,7 @@ const config: ZudokuConfig = {
       label: "API Reference",
     },
   ],
-  redirects: [{ from: "/", to: "/api" }],
+  redirects: [{ from: "/", to: "/welcome" }],
   apis: [
     {
       // The gateway generates this spec from its Zod contracts at startup,

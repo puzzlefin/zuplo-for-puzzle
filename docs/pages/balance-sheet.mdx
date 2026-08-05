@@ -1,0 +1,559 @@
+---
+sidebar_label: Balance Sheet API Endpoint
+---
+
+# Balance Sheet API Endpoint
+
+## 1. Introduction
+
+The Balance Sheet endpoint provides programmatic access to a company's statement of financial position. This endpoint returns balance sheet data organized by configurable time intervals (month, quarter, year, or totals), showing the company's assets, liabilities, and equity at specific points in time. The data is returned in a structured format that preserves the hierarchical relationship between accounts and rollup categories.
+
+**Endpoint:** `GET /v0/company/:id/statements/balanceSheet`
+
+**Required Scope:** `read:company`
+
+---
+
+## 2. Expected Input
+
+This is a GET endpoint that accepts parameters as query parameters.
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | The external ID of the company |
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `basis` | string | No | `accrual` | Accounting basis. Accepts `cash` or `accrual` |
+| `interval` | string | No | `month` | Time interval grouping. Accepts: `month`, `quarter`, `year`, `totals` |
+| `startPeriod` | string | No | Auto-inferred | Start period in format matching the interval type (see Auto-completion section) |
+| `endPeriod` | string | No | Auto-inferred | End period in format matching the interval type (see Auto-completion section) |
+| `dateMacro` | string | No | - | Predefined date range. Cannot be used with `startPeriod`/`endPeriod`. See available options below |
+
+### Period Format by Interval Type
+
+The format of `startPeriod` and `endPeriod` depends on the `interval` parameter:
+
+- **month**: `YYYY-MM` (e.g., `2024-01`)
+- **quarter**: `YYYY-QN` (e.g., `2024-Q1`, `2024-Q2`)
+- **year**: `YYYY` (e.g., `2024`)
+- **totals**: Period format not relevant (all data aggregated)
+
+### Available DateMacro Values
+
+- `CurrentMonth` - Current calendar month
+- `LastFullMonth` - Previous complete month
+- `LastThreeMonths` - Last 3 months including current
+- `LastThreeFullMonths` - Previous 3 complete months
+- `CurrentYear` - Current calendar year
+- `LastYear` - Previous calendar year
+- `QuarterToDate` - Current quarter from start to current date
+- `YearToDate` - Current year from start to current date
+
+### Example Requests
+
+#### Basic request with month intervals
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?basis=cash&interval=month&startPeriod=2024-01&endPeriod=2024-03`
+
+#### Using date macro
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?basis=accrual&interval=month&dateMacro=YearToDate`
+
+#### Quarterly report with accrual basis
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?basis=accrual&interval=quarter&startPeriod=2024-Q1&endPeriod=2024-Q4`
+
+#### Single point-in-time balance sheet
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?basis=accrual&interval=totals&endPeriod=2024-12`
+
+## 2.1 Input Validations
+
+The endpoint enforces the following validation rules:
+
+### DateMacro vs Period Parameters
+
+- `dateMacro` **cannot be combined** with `startPeriod` or `endPeriod`
+- If both are provided, error: `"Cannot use dateMacro with startPeriod/endPeriod"`
+
+### Period Format Validation
+
+- Period format **must match** the specified `interval` type:
+  - `interval=month` requires month format: `YYYY-MM`
+  - `interval=quarter` requires quarter format: `YYYY-QN`
+  - `interval=year` requires year format: `YYYY`
+- Invalid format returns error: `"Invalid period format: [period]"`
+
+### Period Range Validation
+
+- `startPeriod` must be **before or equal to** `endPeriod`
+- Comparison logic respects the period type (month, quarter, year)
+- Error: `"startPeriod must be before or equal to endPeriod"`
+
+### Interval Validation
+
+- Unsupported interval values return error: `"Interval [value] is unsupported"`
+- Valid values: `month`, `quarter`, `year`, `totals` (case-insensitive)
+
+---
+
+## 2.2 Auto-completion Behavior for startPeriod and endPeriod
+
+When `dateMacro` is not used, the endpoint automatically infers missing period values:
+
+### startPeriod Auto-completion
+
+If `startPeriod` is **not provided**, the system infers it using this precedence:
+
+1. **Company's `startIngestionDate`**: If the company has a configured start ingestion date, this date is converted to the appropriate period format
+2. **First Transaction Date**: If no start ingestion date exists, the system queries for the company's first transaction and uses its timestamp
+3. **Error**: If no transactions exist and no start ingestion date is configured, returns error: `"Can't infer start period for company because no transactions have been ingested"`
+
+The inferred date is converted to a period based on the company's timezone and the requested interval type.
+
+### endPeriod Auto-completion
+
+If `endPeriod` is **not provided**, it defaults to:
+
+- **Current month** (as of the request time, in the company's timezone)
+- Calculated using `endOfMonth()` for the current date in the company's timezone
+
+### Period Normalization
+
+After determining `startPeriod` and `endPeriod`:
+
+- Both periods are converted to their **full month range equivalents**
+- Examples:
+  - Quarter `2024-Q1` → start: `2024-01`, end: `2024-03`
+  - Year `2024` → start: `2024-01`, end: `2024-12`
+  - Month `2024-03` → start: `2024-03`, end: `2024-03`
+
+- This normalization ensures consistent internal processing regardless of the requested interval granularity
+
+### Example Scenarios
+
+**Scenario 1: Both periods omitted**
+
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?interval=month`
+- `startPeriod` → Inferred from company's startIngestionDate or first transaction
+- `endPeriod` → Current month (e.g., `2024-11` if called in November 2024)
+
+**Scenario 2: Only endPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?interval=quarter&endPeriod=2024-Q4`
+- `startPeriod` → Inferred from company data
+- `endPeriod` → `2024-Q4` (as provided)
+
+**Scenario 3: Only startPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/balanceSheet?interval=year&startPeriod=2023`
+- `startPeriod` → `2023` (as provided)
+- `endPeriod` → Current month (e.g., `2024-11`)
+
+---
+
+## 3. Output Example
+
+The response is a JSON object containing two main arrays: `columns` and `lines`.
+
+### Response Structure
+```
+{
+  "columns": [
+    {
+      "key": "2024-01",
+      "label": "2024-01",
+      "dateRange": {
+        "start": "2024-01-01",
+        "end": "2024-01-31"
+      }
+    },
+    {
+      "key": "2024-02",
+      "label": "2024-02",
+      "dateRange": {
+        "start": "2024-02-01",
+        "end": "2024-02-29"
+      }
+    },
+    {
+      "key": "2024-03",
+      "label": "2024-03",
+      "dateRange": {
+        "start": "2024-03-01",
+        "end": "2024-03-31"
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "title": "Assets",
+      "values": [
+        {
+          "balance": "500000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "525000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "550000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+        "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+      "title": "Current Assets",
+      "values": [
+        {
+          "balance": "300000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "315000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "330000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "childIds": [
+        "d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9"
+      ],
+      "lineType": "parent_account_group"
+    },
+    {
+      "id": "d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
+      "title": "Cash and Cash Equivalents",
+      "values": [
+        {
+          "balance": "250000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "260000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "270000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": "e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
+      "parentId": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+      "childIds": [],
+      "lineType": "account"
+    },
+    {
+      "id": "f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1",
+      "title": "Liabilities",
+      "values": [
+        {
+          "balance": "200000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "210000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "220000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3",
+      "title": "Equity",
+      "values": [
+        {
+          "balance": "300000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "315000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "330000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4"
+      ],
+      "lineType": "rollup"
+    }
+  ]
+}
+```
+### Response Fields
+
+#### Columns Array
+
+Each column represents a point in time for the balance sheet:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string | Unique identifier for the column (period string) |
+| `label` | string | Display label for the column |
+| `dateRange` | object | ISO 8601 date range for the period |
+| `dateRange.start` | string | Start date (inclusive) in format `YYYY-MM-DD` |
+| `dateRange.end` | string | End date (inclusive) in format `YYYY-MM-DD` |
+
+#### Lines Array
+
+Each line represents an account or rollup category in the balance sheet:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | MD5 hash (32-character hex string) uniquely identifying the line |
+| `title` | string | Display name of the account or category |
+| `values` | array | Array of balance values for each column |
+| `values[].balance` | string | Decimal amount as string (represents account balance at end of period) |
+| `values[].columnKey` | string | References the column's key |
+| `accountId` | string \| null | Id of the ledger account (null for rollups and groups) |
+| `parentId` | string \| null | MD5 hash of the parent line (null for top-level items) |
+| `childIds` | array | Array of MD5 hashes for child lines |
+| `lineType` | string | Type of line: `account`, `rollup`, `parent_account_group` |
+
+### Line Types
+
+- **`account`**: Individual ledger account with an `accountId`
+- **`rollup`**: Aggregated category (sum of child accounts)
+- **`parent_account_group`**: Parent grouping category
+
+### Notes
+
+- **All IDs** (`id`, `accountId`, `parentId`, `childIds`) are **MD5 hashes** (32-character hexadecimal strings)
+- Balances are returned as decimal strings to preserve precision
+- Balance sheet shows **point-in-time** balances (as of the end date of each period)
+- The hierarchical structure is preserved through `parentId` and `childIds` relationships
+- Lines are ordered to reflect the standard balance sheet layout (Assets → Liabilities → Equity)
+- The fundamental accounting equation holds: **Assets = Liabilities + Equity**
+
+---
+
+## 4. Retrieving Chart of Accounts
+
+The Chart of Accounts endpoint allows you to retrieve all ledger accounts for a company, including their balances, categories, and metadata. This is useful for understanding which accounts are included in the balance sheet.
+
+### Chart of Accounts Endpoint
+
+**Endpoint:** `GET /v0/company/:id/chartOfAccounts`
+
+**Required Scope:** `read:company`
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `basis` | string | No | Accounting basis for balance calculation. Accepts `cash` or `accrual`. Default: `cash` |
+| `effectiveDate` | string | No | ISO 8601 date (`YYYY-MM-DD`) to retrieve accounts effective at that date |
+| `startDate` | string | No | ISO 8601 datetime to filter accounts updated after this timestamp |
+| `nominalCode` | string | No | Filter accounts by nominal code prefix (e.g., `"1"` returns all asset accounts starting with "1") |
+| `getRestricted` | boolean | No | Include historical/restricted COA keys. Default: `false` |
+
+### Request Examples
+
+#### Get all accounts with cash basis balances
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=cash`
+
+#### Get accounts effective on a specific date
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?effectiveDate=2024-01-31`
+
+#### Filter by nominal code (e.g., asset accounts starting with "1")
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?nominalCode=1`
+
+#### Get accounts with accrual balances, updated after a specific date
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=accrual&startDate=2024-01-01T00:00:00Z`
+
+### Response Structure
+```
+{
+  "chartOfAccounts": {
+    "accounts": [
+      {
+        "id": "acc_1A2B3C4D5E6F7G8H9I0J",
+        "nominalCode": "1000",
+        "name": "Cash and Cash Equivalents",
+        "description": "Company bank accounts and liquid assets",
+        "type": "Asset",
+        "category": "Current Assets",
+        "subCategory": "Cash",
+        "tertiaryCategory": null,
+        "coaKeys": ["cash", "bank"],
+        "restrictedCoaKeys": [],
+        "keywords": ["cash", "bank", "checking"],
+        "tags": ["asset"],
+        "parentCode": null,
+        "currentBalance": {
+          "amount": "250000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "250000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": true,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      },
+      {
+        "id": "acc_2B3C4D5E6F7G8H9I0J1K",
+        "nominalCode": "2000",
+        "name": "Accounts Payable",
+        "description": "Amounts owed to vendors",
+        "type": "Liability",
+        "category": "Current Liabilities",
+        "subCategory": "Accounts Payable",
+        "tertiaryCategory": null,
+        "coaKeys": ["accounts_payable"],
+        "restrictedCoaKeys": [],
+        "keywords": ["payable", "vendor", "bills"],
+        "tags": ["liability"],
+        "parentCode": null,
+        "currentBalance": {
+          "amount": "45000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "45000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": false,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      },
+      {
+        "id": "acc_3C4D5E6F7G8H9I0J1K2L",
+        "nominalCode": "3000",
+        "name": "Retained Earnings",
+        "description": "Accumulated earnings retained in the business",
+        "type": "Equity",
+        "category": "Equity",
+        "subCategory": "Retained Earnings",
+        "tertiaryCategory": null,
+        "coaKeys": ["retained_earnings"],
+        "restrictedCoaKeys": [],
+        "keywords": ["equity", "earnings", "retained"],
+        "tags": ["equity"],
+        "parentCode": null,
+        "currentBalance": {
+          "amount": "205000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "205000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": false,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      }
+    ]
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | External ID of the ledger account |
+| `nominalCode` | string | Account code/number in the chart of accounts |
+| `name` | string | Display name of the account |
+| `description` | string \| null | Optional description of the account |
+| `type` | string | Account type (e.g., "Asset", "Liability", "Equity") |
+| `category` | string | Primary category classification |
+| `subCategory` | string \| null | Secondary category classification |
+| `tertiaryCategory` | string \| null | Tertiary category classification |
+| `coaKeys` | array | Array of COA keys used for mapping transactions |
+| `restrictedCoaKeys` | array | Historical/deprecated COA keys (only if `getRestricted=true`) |
+| `keywords` | array | Search keywords associated with the account |
+| `tags` | array | Tags for additional categorization |
+| `parentCode` | string \| null | Nominal code of the parent account (if this is a sub-account) |
+| `currentBalance` | object | Current balance including sub-accounts |
+| `currentBalance.amount` | string | Balance amount as decimal string |
+| `currentBalance.currency` | string | Currency code (ISO 4217) |
+| `currentBalanceWithoutSubAccounts` | object | Balance excluding sub-account balances |
+| `isBankAccount` | boolean | Whether this account represents a bank account |
+| `views` | array | Applicable accounting views (`["cash"]`, `["accrual"]`, or `["cash", "accrual"]`) |
+| `currentness` | string \| null | Account status (e.g., "active", "archived") |
+
+### Relationship to Balance Sheet
+
+- The `accountId` field in balance sheet lines references these account IDs
+- Use `nominalCode` to filter specific account ranges:
+  - Assets typically start with "1" (e.g., 1000-1999)
+  - Liabilities typically start with "2" (e.g., 2000-2999)
+  - Equity typically starts with "3" (e.g., 3000-3999)
+- The `type` field indicates whether an account is an Asset, Liability, or Equity account
+- Balance information shows the current state of each account
+- Parent-child relationships via `parentCode` mirror the hierarchical structure in balance sheets
+
+### Important Notes
+
+- Balances are calculated based on the `basis` parameter (cash or accrual)
+- The `effectiveDate` parameter shows the chart of accounts as it existed on that date (useful for historical reporting)
+- `restrictedCoaKeys` are only included when `getRestricted=true` and contain historical COA keys that should not be used for new transactions
+- Account hierarchy is represented through the `parentCode` field
+- Balance sheet accounts (Assets, Liabilities, Equity) are cumulative and represent point-in-time balances
+
+---
+
+## Error Responses
+
+Common error responses:
+```Date
+{
+  "error": "Cannot use dateMacro with startPeriod/endPeriod",
+  "statusCode": 400
+}
+```
+```Filter
+{
+  "error": "You cannot filter by more than one of each type at a time",
+  "statusCode": 400
+}
+```
+```DateFormat
+{
+  "error": "Invalid period format: 2024-13",
+  "statusCode": 400
+}
+```
+```Periods
+{
+  "error": "startPeriod must be before or equal to endPeriod",
+  "statusCode": 400
+}
+```
+```Periods
+{
+  "error": "Can't infer start period for company because no transactions have been ingested",
+  "statusCode": 400
+}
+```

@@ -1,0 +1,282 @@
+---
+sidebar_label: Getting Started
+---
+
+# Getting Started
+
+<br />
+
+Our API is currently under development. We will be continually adding new features and endpoints. You can expect that what is currently documented here and released will remain stable for the indefinite future. We will work with you on any potential changes to assure a smooth transition.
+
+**Sandbox Server:** `https://staging.southparkdata.com`\
+**Production Server:** `https://api.puzzle.io`
+
+## Get your credentials
+
+Request your sandbox credentials by emailing us at [api@puzzle.io](mailto:api@puzzle.io) or contacting your point of contact at Puzzle directly. You will need to provide us with a list of valid redirect URIs and we will provide you with a client ID, a client secret, and a key.
+
+**Example**
+
+```env
+PUZZLE_CLIENT_ID=cid_test_123
+PUZZLE_CLIENT_SECRET=sk_test_123
+PUZZLE_CONNECTION_KEY=acme
+```
+
+<br />
+
+The client ID and client secret will be used for authentication and the connection key will be used for building URLs that your users can use to manage their Puzzle account.
+
+## Authentication
+
+Authentication with our API is done using [OAuth2](https://oauth.net/2/).
+
+> We are encouraging partners to use the OAuth flow moving forward, but if you are an existing partner and you are already set up to use the link token flow, you can find the link token flow instructions [here](../reference/Accounting.yaml/paths/~1linkToken/post).
+
+### Outline of the flow
+
+1. The user is directed to the Puzzle authorize URL.
+2. The user authorizes your application and grants access to one of their companies.
+3. The user is redirected to your application with an authorization code.
+4. Your application exchanges the authorization code for an access token and refresh token pair.
+5. Your application makes requests using that access token.
+6. Your application uses the refresh token to obtain fresh access tokens.
+
+### Direct the user to connect their Puzzle account
+
+The first step is to have the user authorize your application to access their Puzzle information. To do this, you'll create a link to Puzzle where they approve access.
+
+```html
+<a
+  href="https://staging.southparkdata.com/oauth/authorize
+    ?client_id={{PUZZLE_CLIENT_ID}}
+    &redirect_uri=https://example.com/callback
+    &response_type=code
+    &state=a8e6a88f137b4b1a921155c8157907f3"
+>
+  Connect your Puzzle account
+</a>
+```
+
+> Additional information on the parameters can be found [here](../reference/Authentication.yaml/paths/~1authorize/get).
+
+The user will be redirected to Puzzle where they can log in to their account (or create a new account) and authorize the integration with your application for one of their companies.
+
+After accepting, the user will be redirected to the `redirect_uri` with a `code` and the original `state` value in the query params.
+
+```text
+https://example.com/callback?code=123456&state=a8e6a88f137b4b1a921155c8157907f3
+```
+
+You will need to verify that the provided `state` value matches the original `state` that your application sent and you will use the provided `code` value to get an access token and refresh token pair.
+
+### Get an access token on behalf of the user
+
+Next, your application will request an access token from the Puzzle API using the `code` from the previous step.
+
+<br />
+
+```http
+POST https://staging.southparkdata.com/oauth/token
+Content-Type: application/json
+
+{
+  "client_id": "{{PUZZLE_CLIENT_ID}}",
+  "client_secret": "{{PUZZLE_CLIENT_SECRET}}",
+  "redirect_uri": "https://example.com/callback",
+  "code": "123456",
+  "grant_type": "authorization_code"
+}
+```
+
+<br />
+
+**Response**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "refresh_token": "3aecd59e7834be2c637a9ee260f24wIAbJunx6Gy",
+  "scope": "read:company offline_access",
+  "expires_in": 86400,
+  "token_type": "Bearer"
+}
+```
+
+> Include the access token in the `Authorization` HTTP header with every call to the Accounting API.
+
+### Refresh an expired access token
+
+Access tokens expire 24 hours after they have been issued, so you will need to call the `/token` endpoint again but this time using your refresh token instead of a code.
+
+```http
+POST https://staging.southparkdata.com/oauth/token
+Content-Type: application/json
+
+{
+  "client_id": "{{PUZZLE_CLIENT_ID}}",
+  "client_secret": "{{PUZZLE_CLIENT_SECRET}}",
+  "redirect_uri": "https://example.com/callback",
+  "refresh_token": "3aecd59e7834be2c637a9ee260f24wIAbJunx6Gy",
+  "grant_type": "refresh_token"
+}
+```
+
+**Response**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "scope": "read:company offline_access",
+  "expires_in": 86400,
+  "token_type": "Bearer"
+}
+```
+
+Your refresh token does not expire, so take good care of it!
+
+## Get the current user's information
+
+Now that your application has authenticated on behalf of the user, you will need to fetch the company IDs that the user has granted access to. You can use these company IDs to fetch various information about that company.
+
+```http
+GET https://staging.southparkdata.com/rest/v0/me
+Authorization: Bearer eyJhbGci...
+```
+
+**Response**
+
+```json
+{
+  "id": "us_5lmKFvtNBwvLyX6f7qwNGx",
+  "companies": [
+    {
+      "id": "co_1zK3taSboLa8Lr158Havdq",
+      "name": "Flourish and Blotts",
+      "status": "Ready"
+    },
+    {
+      "id": "co_1odgEBwK0lFZc1h69cI61G",
+      "name": "The Leaky Cauldron",
+      "status": "Syncing"
+    }
+  ]
+}
+```
+
+<br />
+
+## Retrieve the company's financial summary
+
+If this user created a new Puzzle account during the authentication flow, it may take some time to bring their company up to date. We will need to ingest all of their transactions, process them, and build their financial reports. If their company is syncing, we will throw a 409 `RESOURCE_PROCESSING` error.
+
+Once they finish connecting and their company is ready, you may begin to retrieve financial data on their behalf.
+
+```http
+GET https://staging.southparkdata.com/rest/v0/company/co_1zK3taSboLa8Lr158Havdq?id=co_1zK3taSboLa8Lr158Havdq
+Authorization: Bearer eyJhbGci...
+```
+
+**Response**
+
+```json
+{
+  "id": "co_1zK3taSboLa8Lr158Havdq",
+  "institutionConnections": [
+    {
+      "id": "ic_2qY9COoAhfMrsH7mCyh86T",
+      "status": "Ok",
+      "institution": {
+        "id": "fi_2qY9COoAhfMrsH7mCyh86T",
+        "name": "Silicon Valley Bank"
+      },
+      "accounts": [
+        {}
+      ],
+      "lastSyncedAt": "2021-10-24T02:17:58.787Z",
+      "createdAt": "2021-08-30T04:07:21.656Z"
+    }
+  ],
+  "financialSummary": {
+    "status": "Ready",
+    "metrics": {
+      "cashOutDate": "18-12-2023",
+      "runway": 18,
+      "fundraiseDate": "18-06-2023",
+      "lastMonthOperatingBurn": {
+        "amount": "388587.46",
+        "currency": "USD"
+      },
+      "annualAvgFullyLoadedSalaryCostPerEmployee": {
+        "amount": "132349.30",
+        "currency": "USD"
+      },
+      "annualAvgSalaryCostPerEmployee": {
+        "amount": "117094.25",
+        "currency": "USD"
+      },
+      "lastMonthAvgFullyLoadedSalaryCostPerEmployee": {
+        "amount": "172329.",
+        "currency": "USD"
+      },
+      "lastMonthAvgSalaryCostPerEmployee": {
+        "amount": "167094.25",
+        "currency": "USD"
+      }
+    }
+  },
+  "metadata": {
+    "dataCompletenessLevel": "High",
+    "categorization": {
+      "percentDollarVolumeCategorized": 0.92
+    }
+  }
+}
+```
+
+## Understanding the status of a company's metrics
+
+The [company](../reference/Accounting.yaml/components/schemas/Company) object includes metadata about the health of a company's transaction categorization.
+
+`percentDollarVolumeCategorized` indicates what percent, by total dollar volume, of transactions have been categorized, either by a user or the system. The higher the percent categorized, the more confidence a company can place in their metrics. For example, a burn where only 10% of the transactions have been categorized will be less trustworthy than a burn where 90% of the transactions have been categorized.
+
+If you don't have a good sense of what different percent completeness scores mean, we also return a status string via the `dataCompletenessLevel` field.
+
+| Data Completeness Level | Relationship to completeness percentage |
+| ----------------------- | --------------------------------------- |
+| Complete                | 1                                       |
+| High                    | 0.9-1                                   |
+| Medium                  | 0.8-0.9                                 |
+| Low                     | \<0.8                                    |
+
+If the `dataCompletenessLevel` is low or medium, a user should be encouraged to perform additional categorizations to increase metric confidence.
+
+To send a user to perform additional categorizations, direct them to the categorize page at your company's private path.
+
+```text
+https://staging.southparkdata.com/connect/{{PUZZLE_CONNECTION_KEY}}/categorize
+```
+
+We recommend that you open that link in a new tab so that the user can easily return to your company dashboard.
+
+## Managing a company's connections
+
+<br />
+
+If a company's institution connection has a status of `Disconnected`, then the user will need to reconnect that institution in order for us to continue to import their data.
+
+<br />
+
+Direct them to the management page at your company's private path.
+
+<br />
+
+```
+https://staging.southparkdata.com/connect/{{PUZZLE_CONNECTION_KEY}}/manage
+```
+
+<br />
+
+We recommend you open that link in a new tab so that the user can easily return to your company dashboard.
+
+<br />

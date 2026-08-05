@@ -1,0 +1,164 @@
+---
+sidebar_label: Bookkeeping
+---
+
+# Bookkeeping
+
+<br />
+
+This guide explains how to use the Puzzle API to manage bookkeeping requests. These endpoints allow you to create and retrieve requests associated with transactions and integrations. It outlines the request types, request fields, and how to work with request statuses.
+
+Note: You will need to have write enabled API keys.
+
+***
+
+## Requests Overview
+
+This section covers how to retrieve and create bookkeeping requests for Puzzle transactions.
+
+There are four types of requests:
+
+* **Category Review** – Transaction-related, requires an action by a requested user.
+* **Documentation** – Transaction-related, requires an action by a requested user.
+* **Message** – Transaction-related, informational only, no requested user.
+* **Integration** – System-generated, not transaction-related, created when an integration connection is disconnected.
+
+Requests can be created through the Requests API or via the Puzzle app.
+
+***
+
+## Request Model
+
+All requests share a common structure when retrieved via `GET /requests` or as a response to `POST /requests`.
+
+### Example Response
+
+```json
+{
+  "requests": [
+    {
+      "id": "req_5e3bZC1mxNtdwEp8eLg9Y2",
+      "type": "CategoryReview",
+      "status": "Open",
+      "requestedByUserId": "user_1ngwhRvqnZNzoMeVysveLW",
+      "requestedUserId": "user_1ngwhRvqnZNzoMeVysveLW",
+      "requestedByUserPosition": "Founder",
+      "requestedUserPosition": "CompanyEmployee",
+      "requestedByUserFirmGroups": ["Payroll team"],
+      "requestedUserFirmGroups": ["Payroll team"],
+      "transactionId": "txn_5e3bZC1mxNtdwEp8eLg9Y2"
+      "message": "string",
+      "createdAt": "2019-08-24T14:15:22Z",
+      "updatedAt": "2019-08-24T14:15:22Z"
+    }
+  ]
+}
+```
+
+## Request Users
+
+Each request involves one or both of the following roles:
+
+* **Requesting User** – the user who created the request.\
+  **Fields:**
+  * `requestedByUserId`
+  * `requestedByUserPosition`
+  * `requestedByUserFirmGroups`
+* **Requested User** – the user assigned to complete the request.\
+  **Fields:**
+  * `requestedUserId`
+  * `requestedUserPosition`
+  * `requestedUserFirmGroups`
+    **Example:**
+* User A requests a category review from User B.
+* User A = *requesting user*.
+* User B = *requested user*.
+
+Each of those fields, refer to some specific user information in relation to the company or firm they belong to:
+
+* UserPosition: refers to the position within the company the user belongs to. It will always be one of these options: CompanyEmployee, Founder, OutsourcedAccountantOrCfo.
+* Firm Groups: refers to the firm groups the user may belong to, in case the company belongs to a firm.
+
+***
+
+## Request Types
+
+### Category Review & Documentation Review
+
+* **Transaction-related**.
+* Contain both a **requesting user** (who created the request) and a **requested user** (who needs to act on the request).
+
+### Message
+
+* **Transaction-related**.
+* Contains only a **requesting user**.
+* Has **no requested user** and **no status field**.
+* Multiple messages can exist on a single transaction.
+
+### Integration
+
+* **Not transaction-related**.
+* **System-generated** when an integration connection is disconnected.
+* **No requesting user**.
+* Assigned to **all users** associated with the integration.
+
+***
+
+## Request Status
+
+Requests can have one of three statuses:
+
+* **Open** – The request is pending action.
+* **Completed** – The request has been resolved.
+* **Cancelled** – The request was canceled.
+
+> Note: Messages do **not** have a status field.
+
+***
+
+## Creating Requests
+
+You can create or update requests for a transaction using the:
+
+POST `/requests`
+
+### Example Request
+
+```json
+{
+  "transactionId": "txn_12345",
+  "requests": {
+    "categoryReview": {
+      "requestedUserId": "user_67890",
+      "status": "Open"
+    },
+    "documentationReview": {
+      "status": "Completed"
+    },
+    "messages": [
+      {
+        "message": "A first message"
+      },
+      {
+        "message": "And another one!"
+      }
+    ]
+  }
+}
+```
+
+### Rules and Constraints
+
+* A transaction can have **only one Category Review** and **only one Documentation** at a time.
+* Creating a new one will **overwrite** the previous request.
+* **Messages have no such limit:**
+  * Multiple messages can exist on a transaction.
+  * Messages cannot be updated with a status (they are informational only).
+
+**Example:**
+
+* Transaction has a Documentation Request with status **Open**.
+* User creates a new Documentation Request with status **Completed**.
+* **Outcome:** The transaction now has a single Documentation Request with status **Completed**.
+
+This overwrite behavior means the `POST` endpoint can also be used to update request statuses for the transaction in scope.

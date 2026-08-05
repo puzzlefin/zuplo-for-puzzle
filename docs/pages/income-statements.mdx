@@ -1,0 +1,625 @@
+---
+sidebar_label: Profit and Loss Statement API Endpoint
+---
+
+# Profit and Loss Statement API Endpoint
+
+## 1. Introduction
+
+The Profit and Loss Statement endpoint provides programmatic access to a company's profit and loss statement. This endpoint returns profit and loss statement data organized by configurable time intervals views (month, quarter, year, or totals) or segment views(departments) with optional filtering by departments and locations. The data is returned in a structured format that preserves the hierarchical relationship between accounts and rollup categories.
+
+**Endpoint:** `GET /v0/company/:id/statements/profitLoss`
+
+**Required Scope:** `read:company`
+
+**Base URL:** Your API base URL + `/rest`
+
+---
+
+## 2. Expected Input
+
+This is a GET endpoint that accepts parameters as query parameters.
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | The external ID of the company |
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `basis` | string | No | `accrual` | Accounting basis. Accepts `cash` or `accrual` |
+| `viewBy` | string | No | `month` | Grouping used to determine the columns. Accepts: `month`, `quarter`, `year`, `totals`, `departments` |
+| `startPeriod` | string | No | Auto-inferred | Start period in format matching the interval type (see Auto-completion section) |
+| `endPeriod` | string | No | Auto-inferred | End period in format matching the interval type (see Auto-completion section) |
+| `dateMacro` | string | No | - | Predefined date range. Cannot be used with `startPeriod`/`endPeriod`. See available options below |
+| `departments` | string | No | - | Comma-separated list of department external IDs to filter by |
+| `locations` | string | No | - | Comma-separated list of location external IDs to filter by |
+| `expandCounterparties` | boolean | No | false | Expands breakdown by counterparty |
+| `expandRevenueSources` | string | No | false | Expands breakdown by revenue source |
+
+### Period Format by viewBy Type
+
+The format of `startPeriod` and `endPeriod` depends on the `viewBy` parameter:
+
+- **month**: `YYYY-MM` (e.g., `2024-01`)
+- **quarter**: `YYYY-QN` (e.g., `2024-Q1`, `2024-Q2`)
+- **year**: `YYYY` (e.g., `2024`)
+- **totals**: Period format not relevant (all data aggregated)
+- **departments**: 
+
+### Available DateMacro Values
+
+- `CurrentMonth` - Current calendar month
+- `LastFullMonth` - Previous complete month
+- `LastThreeMonths` - Last 3 months including current
+- `LastThreeFullMonths` - Previous 3 complete months
+- `CurrentYear` - Current calendar year
+- `LastYear` - Previous calendar year
+- `QuarterToDate` - Current quarter from start to current date
+- `YearToDate` - Current year from start to current date
+
+### Example Requests
+
+# Basic request with month viewBy
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?basis=cash&viewBy=month&startPeriod=2024-01&endPeriod=2024-03`
+
+# Using date macro
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?basis=accrual&viewBy=month&dateMacro=YearToDate`
+
+# Filtering by departments
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=quarter&startPeriod=2024-Q1&endPeriod=2024-Q2&departments=dept_xyz,dept_abc`
+
+When filtering by departments, you will view the respective time interval on viewBy as columns. The amounts will be filtered by the departments on the filter.
+
+# Grouping by departments
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=departments&startPeriod=2024-Q1&endPeriod=2024-Q2`
+
+When grouping by departments, you will view departments as columns. Any amounts that do not belong to a department will appear under a 'No Department' column.
+
+# Quarterly report with accrual basis
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?basis=accrual&viewBy=quarter&startPeriod=2024-Q1&endPeriod=2024-Q4`
+
+## 2.1 Input Validations
+
+The endpoint enforces the following validation rules:
+
+### Tag Group Filtering (Mutually Exclusive)
+
+- **Only one tag group** can be specified per request
+- Valid tag groups: `departments`, `locations`
+- **Exception:** `departments` and `locations` cannot be used together (specific error)
+- Error: `"You cannot filter by more than one of each type at a time"`
+- Specific error for departments + locations: `"Departments and locations are not supported together"`
+
+### DateMacro vs Period Parameters
+
+- `dateMacro` **cannot be combined** with `startPeriod` or `endPeriod`
+- If both are provided, error: `"Cannot use dateMacro with startPeriod/endPeriod"`
+
+### Period Format Validation
+
+- Period format **must match** the specified `viewBy` type:
+  - `viewBy=month` requires month format: `YYYY-MM`
+  - `viewBy=quarter` requires quarter format: `YYYY-QN`
+  - `viewBy=year` requires year format: `YYYY`
+- Invalid format returns error: `"Invalid period format: [period]"`
+
+### Period Range Validation
+
+- `startPeriod` must be **before or equal to** `endPeriod`
+- Comparison logic respects the period type (month, quarter, year)
+- Error: `"startPeriod must be before or equal to endPeriod"`
+
+### viewBy Validation
+
+- Unsupported viewBy values return error: `"Interval [value] is unsupported"`
+- Valid values: `month`, `quarter`, `year`, `totals`, `departments` (case-insensitive)
+
+---
+
+## 2.2 Auto-completion Behavior for startPeriod and endPeriod
+
+When `dateMacro` is not used, the endpoint automatically infers missing period values:
+
+### startPeriod Auto-completion
+
+If `startPeriod` is **not provided**, the system infers it using this precedence:
+
+1. **Company's `startIngestionDate`**: If the company has a configured start ingestion date, this date is converted to the appropriate period format
+2. **First Transaction Date**: If no start ingestion date exists, the system queries for the company's first transaction and uses its timestamp
+3. **Error**: If no transactions exist and no start ingestion date is configured, returns error: `"Can't infer start period for company because no transactions have been ingested"`
+
+The inferred date is converted to a period based on the company's timezone and the requested viewBy type.
+
+### endPeriod Auto-completion
+
+If `endPeriod` is **not provided**, it defaults to:
+
+- **Current month** (as of the request time, in the company's timezone)
+- Calculated using `endOfMonth()` for the current date in the company's timezone
+
+### Period Normalization
+
+After determining `startPeriod` and `endPeriod`:
+
+- Both periods are converted to their **full month range equivalents**
+- Examples:
+  - Quarter `2024-Q1` → start: `2024-01`, end: `2024-03`
+  - Year `2024` → start: `2024-01`, end: `2024-12`
+  - Month `2024-03` → start: `2024-03`, end: `2024-03`
+- This normalization ensures consistent internal processing regardless of the requested viewBy granularity
+
+### Example Scenarios
+
+**Scenario 1: Both periods omitted**
+
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=month` 
+- `startPeriod` → Inferred from company's startIngestionDate or first transaction
+- `endPeriod` → Current month (e.g., `2024-11` if called in November 2024)
+
+**Scenario 2: Only endPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=quarter&endPeriod=2024-Q4`
+- `startPeriod` → Inferred from company data
+- `endPeriod` → `2024-Q4` (as provided)
+
+**Scenario 3: Only startPeriod provided**
+
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=year&startPeriod=2023`
+- `startPeriod` → `2023` (as provided)
+- `endPeriod` → Current month (e.g., `2024-11`)
+
+---
+
+## 3. Output Example
+
+The response is a JSON object containing two main arrays: `columns` and `lines`.
+
+### Response Structure
+
+```
+{
+  "columns": [
+    {
+      "key": "2024-01",
+      "label": "2024-01",
+      "dateRange": {
+        "start": "2024-01-01",
+        "end": "2024-01-31"
+      }
+    },
+    {
+      "key": "2024-02",
+      "label": "2024-02",
+      "dateRange": {
+        "start": "2024-02-01",
+        "end": "2024-02-29"
+      }
+    },
+    {
+      "key": "2024-03",
+      "label": "2024-03",
+      "dateRange": {
+        "start": "2024-03-01",
+        "end": "2024-03-31"
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "67362dfbd0dff9f78a232b5460a99a7d",
+      "title": "Revenue",
+      "values": [
+        {
+          "balance": "150000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "175000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "162000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "4400e30febbb39dc0802f551fe28a616",
+        "8f14e45fceea167a5a36dedd4bea2543"
+      ],
+      "lineType": "rollup"
+    },
+    {
+      "id": "4400e30febbb39dc0802f551fe28a616",
+      "title": "Product Revenue",
+      "values": [
+        {
+          "balance": "100000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "120000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "110000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": "c4ca4238a0b923820dcc509a6f75849b",
+      "parentId": "67362dfbd0dff9f78a232b5460a99a7d",
+      "childIds": [],
+      "lineType": "account"
+    },
+    {
+      "id": "b01a9576213bfbb63eff8f2127f158be",
+      "title": "Operating Expenses",
+      "values": [
+        {
+          "balance": "-50000.00",
+          "columnKey": "2024-01"
+        },
+        {
+          "balance": "-55000.00",
+          "columnKey": "2024-02"
+        },
+        {
+          "balance": "-52000.00",
+          "columnKey": "2024-03"
+        }
+      ],
+      "accountId": null,
+      "parentId": null,
+      "childIds": [
+        "e4da3b7fbbce2345d7772b0674a318d5",
+        "1679091c5a880faf6fb5e6087eb1b2dc"
+      ],
+      "lineType": "parent_account_group"
+    }
+  ]
+}
+```
+### Response Fields
+
+#### Columns Array
+
+Each column represents a time period in the profit and loss statement:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string | Unique identifier for the column (period string) |
+| `label` | string | Display label for the column |
+| `dateRange` | object | ISO 8601 date range for the period |
+| `dateRange.start` | string | Start date (inclusive) in format `YYYY-MM-DD` |
+| `dateRange.end` | string | End date (inclusive) in format `YYYY-MM-DD` |
+
+#### Lines Array
+
+Each line represents an account or rollup category in the profit and loss statement:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | MD5 hash (32-character hex string) uniquely identifying the line |
+| `title` | string | Display name of the account or category |
+| `values` | array | Array of balance values for each column |
+| `values[].balance` | string | Decimal amount as string (negative for expenses) |
+| `values[].columnKey` | string | References the column's key |
+| `accountId` | string \| null | Id of the ledger account (null for rollups and groups) |
+| `parentId` | string \| null | MD5 hash of the parent line (null for top-level items) |
+| `childIds` | array | Array of MD5 hashes for child lines |
+| `lineType` | string | Type of line: `account`, `rollup`, `parent_account_group`, `counterparty`, `accrualRevenueSource`, `department`, `event`, `revenueSource` |
+| `metadata.counterpartyName` | string | Name of the counterparty |
+| `metadata.counterpartyType` | string | Type of counterparty: `customer`, `vendor`, `employee`, `contractor` |
+| `metadata.revenueSourceType` | string | Type of revenue source: `transaction`, `invoice`, `schedule`, `mje`, `other`, `subledger` |
+
+### Line Types
+
+- **`account`**: Individual ledger account with an `accountId`
+- **`rollup`**: Aggregated category (sum of child accounts)
+- **`parent_account_group`**: Parent grouping category
+- **`counterparty`**: Breaks down revenue/expenses by counterparties(e.g.: employee, vendor, etc.). Requires the param `expandCounterparties=true`
+- **`accrualRevenueSource`**: Similar to revenueSource but specifically for accrual-basis revenue recognition when expandRevenueSources=true.
+- **`department`**: Shows department-level breakdowns within accounts.
+- **`event`**: Shows event-level breakdowns within accounts.
+- **`revenueSource`**:  Appears when expandRevenueSources=true. Breaks down cash-basis revenue by source type (transaction, invoice, schedule, mje, other, subledger). Includes metadata.revenueSourceType.
+
+### Notes
+
+- **All IDs** (`id`, `accountId`, `parentId`, `childIds`) are **MD5 hashes** (32-character hexadecimal strings)
+- Balances are returned as decimal strings to preserve precision
+- Negative balances typically represent expenses or debits (depending on account type)
+- Positive balances typically represent revenue or credits
+- The hierarchical structure is preserved through `parentId` and `childIds` relationships
+- Lines are ordered to reflect the standard profit and loss statement layout (Revenue → Expenses → Net Income)
+
+---
+
+## 4. Retrieving Classifications for Filtering
+
+To filter profit and loss statements by departments or locations, you first need to retrieve the available classifications for a company using the Classifications endpoint.
+
+### Classifications Endpoint
+
+**Endpoint:** `GET /v0/company/:id/classifications`
+
+**Required Scope:** `read:company`
+
+### Request
+
+`GET /rest/v0/company/comp_abc123/classifications`
+
+### Response Structure
+
+The endpoint returns all classification classes available for the company, including:
+- **Departments**: Standard department classifications
+- **Locations**: Location-based classifications
+- **User-Created Classes**: Custom classification types (events, projects, etc.)
+
+Each classification class contains segments (individual classification values) with unique IDs that can be used for filtering.
+
+```
+{
+  "classifications": {
+    "classifications": [
+      {
+        "class": "Department",
+        "description": "Department classifications",
+        "segments": [
+          {
+            "id": "cls_3A93Y4t7XwOmPcCUBbhFvU",
+            "segment": "Engineering",
+            "description": "Engineering department"
+          },
+          {
+            "id": "cls_5B82X3r9YvNnQdDVCciGwV",
+            "segment": "Sales",
+            "description": "Sales department"
+          },
+          {
+            "id": "cls_7C71W2q8ZuMmReCWEejHxW",
+            "segment": "Marketing",
+            "description": "Marketing department"
+          }
+        ]
+      },
+      {
+        "class": "Location",
+        "description": "Location classifications",
+        "segments": [
+          {
+            "id": "cls_9D60V1p7AtLlSfBXFfkIyX",
+            "segment": "San Francisco",
+            "description": "San Francisco office"
+          },
+          {
+            "id": "cls_8E51U0o6BsKkTgAYGglJzY",
+            "segment": "New York",
+            "description": "New York office"
+          }
+        ]
+      },
+      {
+        "class": "Project",
+        "description": "Project classifications",
+        "segments": [
+          {
+            "id": "cls_6F42T9n5CrJjUhZXHhmKaZ",
+            "segment": "Project Alpha",
+            "description": "Alpha project"
+          },
+          {
+            "id": "cls_4G33S8m4DqIiViYWIinLba",
+            "segment": "Project Beta",
+            "description": "Beta project"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Using Classification IDs to Filter Profit and Loss Statements
+
+Once you have the classification segment IDs, use them in the profit and loss statement endpoint:
+
+#### Filter by specific departments
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=month&startPeriod=2024-01&endPeriod=2024-03&departments=cls_3A93Y4t7XwOmPcCUBbhFvU,cls_5B82X3r9YvNnQdDVCciGwV`
+
+#### Filter by a specific location
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=quarter&startPeriod=2024-Q1&endPeriod=2024-Q2&locations=cls_9D60V1p7AtLlSfBXFfkIyX`
+
+### Filter by 'no department'
+`GET /rest/v0/company/comp_abc123/statements/profitLoss?viewBy=month&startPeriod=2024-01&endPeriod=2024-03&departments=cls_3A93Y4t7XwOmPcCUBbhFvU,none`
+
+### Important Notes
+
+- **Segment IDs** are prefixed with `cls_` and are the values you pass to the profit and loss statement endpoint
+- You can specify **multiple segment IDs** from the same class (comma-separated)
+- **When filtering by multiple segment IDs the resulting statement values will sum the values of each segment**
+- You **cannot mix** segment types (e.g., departments + locations together)
+- Classification classes and segments are company-specific. E.g.: a company might have a 'Engineering' segment, but other might not.
+- Adding filters does not change the structure of the response, it will simply filter by when doing calculations. E.g.: when filtering by the 'Engineering' department, anything not belonging to 'Engineering' will be ignored.
+- You can filter by elements that do not belong to any department or location. To filter by those, add `departments=none` or `location=none`. Appending more departments/locations is also supported when using the none filter, e.g.: `departments=cls_3A93Y4t7XwOmPcCUBbhFvU,none`
+
+---
+
+## 5. Retrieving Chart of Accounts
+
+The Chart of Accounts endpoint allows you to retrieve all ledger accounts for a company, including their balances, categories, and metadata. This is useful for understanding which accounts are included in the profit and loss statement.
+
+### Chart of Accounts Endpoint
+
+**Endpoint:** `GET /v0/company/:id/chartOfAccounts`
+
+**Required Scope:** `read:company`
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `basis` | string | No | Accounting basis for balance calculation. Accepts `cash` or `accrual`. Default: `cash` |
+| `effectiveDate` | string | No | ISO 8601 date (`YYYY-MM-DD`) to retrieve accounts effective at that date |
+| `startDate` | string | No | ISO 8601 datetime to filter accounts updated after this timestamp |
+| `nominalCode` | string | No | Filter accounts by nominal code prefix (e.g., `"40"` returns all accounts starting with "40") |
+| `getRestricted` | boolean | No | Include historical/restricted COA keys. Default: `false` |
+
+### Request Examples
+
+# Get all accounts with cash basis balances
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=cash`
+
+# Get accounts effective on a specific date
+;`GET /rest/v0/company/comp_abc123/chartOfAccounts?effectiveDate=2024-01-31`
+
+# Filter by nominal code (e.g., revenue accounts starting with "4")
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?nominalCode=4`
+
+# Get accounts with accrual balances, updated after a specific date
+`GET /rest/v0/company/comp_abc123/chartOfAccounts?basis=accrual&startDate=2024-01-01T00:00:00Z`
+
+### Response Structure
+```
+{
+  "chartOfAccounts": {
+    "accounts": [
+      {
+        "id": "acc_1A2B3C4D5E6F7G8H9I0J",
+        "nominalCode": "4000",
+        "name": "Product Revenue",
+        "description": "Revenue from product sales",
+        "type": "income",
+        "category": "Revenue",
+        "subCategory": "Product Sales",
+        "tertiaryCategory": null,
+        "coaKeys": ["product_revenue"],
+        "restrictedCoaKeys": [],
+        "keywords": ["revenue", "sales", "income"],
+        "tags": ["revenue"],
+        "parentCode": "4000",
+        "currentBalance": {
+          "amount": "150000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "150000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": false,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      },
+      {
+        "id": "acc_2B3C4D5E6F7G8H9I0J1K",
+        "nominalCode": "5000",
+        "name": "Cost of Goods Sold",
+        "description": "Direct costs attributable to production",
+        "type": "Cost of Goods Sold",
+        "category": "Cost of Goods Sold",
+        "subCategory": "Direct Costs",
+        "tertiaryCategory": null,
+        "coaKeys": ["cogs"],
+        "restrictedCoaKeys": [],
+        "keywords": ["cogs", "cost", "production"],
+        "tags": ["expense"],
+        "parentCode": null,
+        "currentBalance": {
+          "amount": "-45000.00",
+          "currency": "USD"
+        },
+        "currentBalanceWithoutSubAccounts": {
+          "amount": "-45000.00",
+          "currency": "USD"
+        },
+        "isBankAccount": false,
+        "views": ["cash", "accrual"],
+        "currentness": "active"
+      }
+    ]
+  }
+}
+```
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | External ID of the ledger account |
+| `nominalCode` | string | Account code/number in the chart of accounts |
+| `name` | string | Display name of the account |
+| `description` | string \| null | Optional description of the account |
+| `type` | string | Account type (e.g., "profit and loss", "Expense", "Asset", "Liability", "Equity") |
+| `category` | string | Primary category classification |
+| `subCategory` | string \| null | Secondary category classification |
+| `tertiaryCategory` | string \| null | Tertiary category classification |
+| `coaKeys` | array | Array of COA keys used for mapping transactions |
+| `restrictedCoaKeys` | array | Historical/deprecated COA keys (only if `getRestricted=true`) |
+| `keywords` | array | Search keywords associated with the account |
+| `tags` | array | Tags for additional categorization |
+| `parentCode` | string \| null | Nominal code of the parent account (if this is a sub-account) |
+| `currentBalance` | object | Current balance including sub-accounts |
+| `currentBalance.amount` | string | Balance amount as decimal string |
+| `currentBalance.currency` | string | Currency code (ISO 4217) |
+| `currentBalanceWithoutSubAccounts` | object | Balance excluding sub-account balances |
+| `isBankAccount` | boolean | Whether this account represents a bank account |
+| `views` | array | Applicable accounting views (`["cash"]`, `["accrual"]`, or `["cash", "accrual"]`) |
+| `currentness` | string \| null | Account status (e.g., "active", "archived") |
+
+### Relationship to profit and loss Statement
+
+- The `accountId` field in profit and loss statement lines references these account IDs
+- Use `nominalCode` to filter specific account ranges
+- The `type` and `category` fields help understand how accounts are grouped in the profit and loss statement
+- Balance information shows the current state of each account
+- Parent-child relationships via `parentCode` mirror the hierarchical structure in profit and loss statements
+
+### Important Notes
+
+- Balances are calculated based on the `basis` parameter (cash or accrual)
+- The `effectiveDate` parameter shows the chart of accounts as it existed on that date (useful for historical reporting)
+- `restrictedCoaKeys` are only included when `getRestricted=true` and contain historical COA keys that should not be used for new transactions
+- Account hierarchy is represented through the `parentCode` field
+
+---
+
+## Error Responses
+
+Common error responses:
+```Date
+{
+  "error": "Cannot use dateMacro with startPeriod/endPeriod",
+  "statusCode": 400
+}
+```
+
+```Filter
+{
+  "error": "You cannot filter by more than one of each type at a time",
+  "statusCode": 400
+}
+```
+
+```DateFormat
+{
+  "error": "Invalid period format: 2024-13",
+  "statusCode": 400
+}
+```
+
+```Periods
+{
+  "error": "startPeriod must be before or equal to endPeriod",
+  "statusCode": 400
+}
+```
+
+```Periods
+{
+  "error": "Can't infer start period for company because no transactions have been ingested",
+  "statusCode": 400
+}
+```
