@@ -73,6 +73,13 @@ const config: ZudokuConfig = {
       type: "url",
       input: "https://api.puzzle.io/rest/v0/openapi.json",
       path: "api",
+      options: {
+        // Hidden until the spec carries securitySchemes and a sandbox
+        // server (API-3831). Without them the playground has nowhere to
+        // put a token and points only at production, so every request it
+        // sends comes back 401.
+        disablePlayground: true,
+      },
     },
   ],
   // No portal sign-in for now: the docs are fully public, and API calls
