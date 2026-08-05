@@ -8,7 +8,7 @@ sidebar_label: Getting Started
 
 Our API is currently under development. We will be continually adding new features and endpoints. You can expect that what is currently documented here and released will remain stable for the indefinite future. We will work with you on any potential changes to assure a smooth transition.
 
-**Sandbox Server:** `https://staging.southparkdata.com`\
+**Sandbox Server:** `https://sandbox.puzzle.io`\
 **Production Server:** `https://api.puzzle.io`
 
 ## Get your credentials
@@ -31,8 +31,6 @@ The client ID and client secret will be used for authentication and the connecti
 
 Authentication with our API is done using [OAuth2](https://oauth.net/2/).
 
-> We are encouraging partners to use the OAuth flow moving forward, but if you are an existing partner and you are already set up to use the link token flow, you can find the link token flow instructions [here](../reference/Accounting.yaml/paths/~1linkToken/post).
-
 ### Outline of the flow
 
 1. The user is directed to the Puzzle authorize URL.
@@ -48,7 +46,7 @@ The first step is to have the user authorize your application to access their Pu
 
 ```html
 <a
-  href="https://staging.southparkdata.com/oauth/authorize
+  href="https://sandbox.puzzle.io/oauth/authorize
     ?client_id={{PUZZLE_CLIENT_ID}}
     &redirect_uri=https://example.com/callback
     &response_type=code
@@ -77,7 +75,7 @@ Next, your application will request an access token from the Puzzle API using th
 <br />
 
 ```http
-POST https://staging.southparkdata.com/oauth/token
+POST https://sandbox.puzzle.io/oauth/token
 Content-Type: application/json
 
 {
@@ -110,7 +108,7 @@ Content-Type: application/json
 Access tokens expire 24 hours after they have been issued, so you will need to call the `/token` endpoint again but this time using your refresh token instead of a code.
 
 ```http
-POST https://staging.southparkdata.com/oauth/token
+POST https://sandbox.puzzle.io/oauth/token
 Content-Type: application/json
 
 {
@@ -140,7 +138,7 @@ Your refresh token does not expire, so take good care of it!
 Now that your application has authenticated on behalf of the user, you will need to fetch the company IDs that the user has granted access to. You can use these company IDs to fetch various information about that company.
 
 ```http
-GET https://staging.southparkdata.com/rest/v0/me
+GET https://sandbox.puzzle.io/rest/v0/me
 Authorization: Bearer eyJhbGci...
 ```
 
@@ -173,7 +171,7 @@ If this user created a new Puzzle account during the authentication flow, it may
 Once they finish connecting and their company is ready, you may begin to retrieve financial data on their behalf.
 
 ```http
-GET https://staging.southparkdata.com/rest/v0/company/co_1zK3taSboLa8Lr158Havdq?id=co_1zK3taSboLa8Lr158Havdq
+GET https://sandbox.puzzle.io/rest/v0/company/co_1zK3taSboLa8Lr158Havdq?id=co_1zK3taSboLa8Lr158Havdq
 Authorization: Bearer eyJhbGci...
 ```
 
@@ -254,7 +252,7 @@ If the `dataCompletenessLevel` is low or medium, a user should be encouraged to 
 To send a user to perform additional categorizations, direct them to the categorize page at your company's private path.
 
 ```text
-https://staging.southparkdata.com/connect/{{PUZZLE_CONNECTION_KEY}}/categorize
+https://sandbox.puzzle.io/connect/{{PUZZLE_CONNECTION_KEY}}/categorize
 ```
 
 We recommend that you open that link in a new tab so that the user can easily return to your company dashboard.
@@ -272,7 +270,7 @@ Direct them to the management page at your company's private path.
 <br />
 
 ```
-https://staging.southparkdata.com/connect/{{PUZZLE_CONNECTION_KEY}}/manage
+https://sandbox.puzzle.io/connect/{{PUZZLE_CONNECTION_KEY}}/manage
 ```
 
 <br />
