@@ -56,7 +56,7 @@ The first step is to have the user authorize your application to access their Pu
 </a>
 ```
 
-> Additional information on the parameters can be found [here](../reference/Authentication.yaml/paths/~1authorize/get).
+> Additional information on the parameters can be found in the [API Reference](/api) under **OAuth**.
 
 The user will be redirected to Puzzle where they can log in to their account (or create a new account) and authorize the integration with your application for one of their companies.
 
@@ -234,7 +234,7 @@ Authorization: Bearer eyJhbGci...
 
 ## Understanding the status of a company's metrics
 
-The [company](../reference/Accounting.yaml/components/schemas/Company) object includes metadata about the health of a company's transaction categorization.
+The [company](/api) object includes metadata about the health of a company's transaction categorization.
 
 `percentDollarVolumeCategorized` indicates what percent, by total dollar volume, of transactions have been categorized, either by a user or the system. The higher the percent categorized, the more confidence a company can place in their metrics. For example, a burn where only 10% of the transactions have been categorized will be less trustworthy than a burn where 90% of the transactions have been categorized.
 
