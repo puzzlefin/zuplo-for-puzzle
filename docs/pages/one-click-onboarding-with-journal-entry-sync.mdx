@@ -1,0 +1,500 @@
+---
+sidebar_label: One-Click Onboarding w/ Journal Entry Synch
+---
+
+# One-Click Onboarding w/ Journal Entry Synch
+
+<br />
+
+This guide explains how to use the Puzzle API to programmatically set up a company or connect to an existing company and complete the initial accounting integration. It outlines the steps to create a company and user, establish an integration connection, add financial accounts to the chart of accounts (COA), retrieve necessary data to create a journal entry, and post journal entries into Puzzle's general ledger.
+
+Note: You will need to have write enabled API keys.
+
+***
+
+## Workflow Overview
+
+This workflow covers how to create a new Puzzle company or connect to an existing one, then post journal entries for that company.
+
+1. **Call Create Company Endpoint**
+   * Call `POST /company` to create a new Puzzle company and associated user
+   * The response determines which scenario path to follow
+     * Scenario A - No Existing User
+       * `200: OK`
+     * Scenario B - Existing User, No Company
+       * `400: USER_ALREADY_EXISTS`
+     * Scenario C - Existing User, Existing Company
+       * `400: USER_AND_COMPANY_ALREADY_EXISTS`
+2. **Send User to Prefilled Onboarding** *(Scenario B only)*
+   * Direct the user to the Prefilled Onboarding endpoint to finish company creation
+3. **Authenticate**
+   * Use the OAuth 2.0 authorize flow to obtain an access token
+   * In Scenario A, shared key authentication may be used instead
+4. **Create Integration Connection (Scenarios B and C only)**
+   * Create an integration connection which enables your application to send data to the Puzzle company
+5. **Create Financial Account(s)**
+   * Add financial accounts to the company’s Chart of Accounts (COA)
+   * In Scenario C, if the accounts already exist in Puzzle, you will get back an error that the account already exists
+6. **Retrieve Required Data for Journal Entry**
+   * Pull the COA keys, locations, and departments which can be used in journal entries
+7. **Post Journal Entries**
+   * Use the create journal entries endpoint to create journal entries or transactions in the company’s general ledger
+
+***
+
+## Flow Scenarios
+
+If the email used in the Create Company request already belongs to an existing Puzzle user, additional steps are required to complete the accounting integration. There are three possible scenarios:
+
+* **Scenario A – No Existing User**: The email is not associated with any user. Calling Create Company will create both a new user and a new company.
+* **Scenario B – Existing User, No Company**: The email is associated with an existing user, but that user is not linked to a company. You will need to send the user to the Prefilled Onboarding endpoint to finish creating their company.
+* **Scenario C – Existing User, Existing Company**: The email is associated with a user who already has a company. The user must log in to Puzzle via the Authorize endpoint to grant you access to their data.
+
+The required steps for each scenario are detailed below.
+
+### Scenario A – No Existing User
+
+**Workflow Steps: 1 → 3 → 5 → 6 → 7**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `200: OK`
+
+* Puzzle creates the user, company, and a push integration connection.
+
+Step 3: Authenticate with OAuth 2.0 *(optional, can use shared key auth)*
+
+Step 5: Create Financial Account(s)
+
+Step 6: Retrieve Required Data for Journal Entry,
+
+Step 7: Post Journal Entries
+
+### Scenario B – Existing User, No Existing Company
+
+**Workflow Steps: 1 → 2 → 3 → 4 → 5 → 6 → 7**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `400: USER_ALREADY_EXISTS`
+
+Step 2: Partner sends user to Prefilled Onboarding
+
+Step 3: Authenticate with OAuth 2.0
+
+Step 4: Create Integration Connection
+
+Step 5: Create Financial Account(s)
+
+Step 6: Retrieve Required Data for Journal Entry,
+
+Step 7: Post Journal Entries
+
+### Scenario C – Existing User, Existing Company
+
+**Workflow Steps: 1 → 3 → 4 → 5 → 6 → 7**
+
+**Flow:**
+
+Step 1: Create company endpoint returns `400: USER_AND_COMPANY_ALREADY_EXISTS`
+
+Step 3: Authenticate with OAuth 2.0
+
+Step 4: Create Integration Connection
+
+Step 5: Create Financial Account(s)
+
+Step 6: Retrieve Required Data for Journal Entry,
+
+Step 7: Post Journal Entries
+
+***
+
+## Detailed Flow Steps
+
+***
+
+## 1.  Call Create Company Endpoint
+
+**Endpoint:** `POST /company`
+
+Creates a company, user, and integration connection. Returns a `setPasswordUrl` to allow the user to set a password which completes their Puzzle account setup.
+
+The `email` must be unique in Puzzle. You cannot use the same email to create multiple companies.
+
+**Response outcomes:**
+
+* `200 OK`: Proceed with Scenario A
+* `400 USER_ALREADY_EXISTS`: Proceed with Scenario B
+* `400 USER_AND_COMPANY_ALREADY_EXISTS`: Proceed with Scenario C
+
+Request Example:
+
+```json
+{
+  "user": {
+    "email": "test-user at company.io",
+    "firstName": "Test",
+    "lastName": "User"
+  },
+  "company": {
+    "name": "Test Company",
+    "type": "VirtualGoods",
+    "revenueModel": "AnnualSubscription",
+    "timeZone": "US/Alaska",
+    "currentUserRole": "Founder",
+    "coaType": "saas",
+    "orgType": "LLC"
+  }
+}
+```
+
+Response Example - 200:
+
+```json
+{
+  "companyId": "co_xxx",
+  "userId": "user_xxx",
+  "setPasswordUrl": "https://..."
+}
+```
+
+Response Example - 400:
+
+```json
+{
+  "errors": [
+    {
+      "message": "User already exists in Puzzle system",
+      "code": "USER_ALREADY_EXISTS"
+    }
+  ]
+}
+```
+
+Response Example - 400:
+
+```json
+{
+  "errors": [
+    {
+      "message": "User already exists in Puzzle system and belongs to a company",
+      "code": "USER_AND_COMPANY_ALREADY_EXISTS"
+    }
+  ]
+}
+```
+
+***
+
+## 2. Send User to Prefilled Onboarding (Scenario B only)
+
+**Endpoint:** `POST /onboarding`
+
+Returns a URL to redirect the user to complete company creation. The user must log in with the same email from Step 1.
+
+Request Example:
+
+```json
+{
+  "name": "Test Company",
+  "type": "VirtualGoods",
+  "revenueModel": "AnnualSubscription",
+  "timeZone": "US/Alaska",
+  "currentUserRole": "Founder",
+  "coaType": "saas",
+  "orgType": "LLC"
+}
+```
+
+Response Example:
+
+```json
+{
+  "url": "https://..."
+}
+```
+
+***
+
+## **3. Authenticate**
+
+### OAuth 2.0 Authentication (Preferred)
+
+OAuth is required for Scenarios B and C. OAuth is the preferred authentication method. It requires a logged in user.
+
+**Usage:**
+
+1. Call the `Authorize` endpoint with your `client_id` and `redirect_uri`.
+2. After user has logged and approved data sharing with Puzzle, a `code` parameter will be returned in the redirect URI.
+3. Exchange the `code` at the `Access Token` endpoint to obtain a bearer token.
+4. Include the bearer token in subsequent requests: `Authorization: Bearer <token>`
+
+### Shared Key Authentication
+
+This method is appropriate for server-to-server communication and flows that do not require a logged-in user. It cannot be used with the `/me` endpoint.
+
+**Usage:**
+
+* Add the following request header: `puzzle-client-id: {{clientId}}`
+* Set the authorization header: `Authorization: Bearer {{clientSecret}}`
+
+***
+
+## 4. Create Integration Connection (Scenarios B and C only)
+
+**Endpoint:** `POST /company/{{companyId}}/integrationConnection`
+
+Creates an integration connection that enables you to send data to Puzzle for the specified company.
+
+Request Example: This request does not have a body.
+
+```json
+{}
+```
+
+Response Example:
+
+```json
+{
+  "message": "Integration connection created successfully"
+}
+```
+
+***
+
+## 5.  Create Financial Account(s)
+
+**Endpoint:** `POST /company/{{companyId}}/accounts` [\[docs\]](reference/Accounting.yaml/paths/~1company~1\{id}~1accounts/post)
+
+Creates a financial account (e.g., a bank account) for the company. These accounts will be added to the company’s Chart of Accounts and can be used in journal entries.
+
+Request Example:
+
+```json
+{
+  "nativeId": "dpacc_clfd1v85100000oisy4i8pct8",
+  "name": "Primary Cash Account",
+  "mask": "2459",
+  "type":"Depository",
+  "currency": "USD"
+}
+```
+
+Response Example - 200:
+
+```json
+{
+  "id": "acc_2K3FzOBRzfNdl3MpN1kvtl",
+  "nativeId": "dpacc_clfd1v85100000oisy4i8pct8",
+  "name": "Primary Cash Account",
+  "mask": "2459",
+  "type": "Depository",
+  "subType": null,
+  "currentBalance": {
+    "amount": "0.00",
+     "currency": "USD"
+  },
+  "status": "Syncing",
+  "lastUpdatedAt": "2025-06-25T21:56:04.612Z"
+}
+```
+
+Response Example - 400:
+
+```json
+{
+  "errors": [
+    {
+      "message": "Account with native ID dpacc_clfd1v85100000oisy4i8pct8 already exists.",
+      "code": "BAD_USER_INPUT"
+    }
+  ]
+}
+```
+
+***
+
+## 6. Retrieve Required Data for Journal Entry (COA, Locations, Departments)
+
+To create a journal entry, you will need to retrieve the chart of accounts (COA) to get the appropriate `coaKey` values, as well as any classification metadata like locations and departments. These values can be included as part of each journal line.
+
+<aside>
+  Note: This data may change over time as users create new accounts or classifications within Puzzle.
+</aside>
+
+**Chart of Accounts (COA) Endpoint:** `GET /company/{{companyId}}/chartOfAccounts?getRestricted=true` [\[docs\]](reference/Accounting.yaml/paths/~1company~1\{id}~1chartOfAccounts/get)
+
+Retrieves the company's Chart of Accounts, including restricted account (bank accounts) keys which you will need to create the journal entries.
+
+Response Example (truncated):
+
+```json
+{
+  "accounts": [
+    {
+      "nominalCode": "10010",
+      "name": "Bank Account - Institution",
+      "restrictedCoaKeys": ["bank_01"],
+      "type": "asset",
+      "category": "bank",
+      "isBankAccount": true,
+      "currentBalance": {
+        "amount": "0.00",
+        "currency": "USD"
+      },
+      ...
+    },
+    ...
+  ]
+}
+```
+
+**Classifications Endpoint:** `GET /company/{{companyId}}/classifications` [\[docs\]](reference/Accounting.yaml/paths/~1company~1\{id}~1classifications/get)
+
+Retrieves user-defined classification metadata such as departments or locations. These can be included in journal entry lines to provide additional context. No classifications exist by default; they must be created by the user in Puzzle.
+
+Response Example:
+
+```json
+{
+  "classifications": [
+    {
+      "class": "Department",
+      "description": "Company departments",
+      "segments": [
+        {
+          "segment": "Engineering",
+          "description": null
+        },
+        {
+          "segment": "Product",
+          "description": null
+        }
+      ]
+    },
+    {
+      "class": "Location",
+      "description": null,
+      "segments": [
+        {
+          "segment": "San Francisco, CA",
+          "description": "Headquarters"
+        },
+        {
+          "segment": "New York, NY",
+          "description": null
+        }
+      ]
+    },
+  ]
+}
+```
+
+***
+
+## 7. Post Journal Entries
+
+**Endpoint:** `POST /company/{{companyId}}/journalEntries` [\[docs\]](reference/Accounting.yaml/paths/~1company~1\{id}~1journalEntries/post)
+
+Posts journal entries using the COA keys returned in the previous step.
+
+When `type` is `Journal` (or not set):
+
+* The line items for each journal entry must balance to 0.
+
+When `type` is `Transaction`:
+
+* A restricted bank account `coaKey` must be supplied to only one line. To create or see your restricted bank account `coaKeys`, use the Chart of Accounts or Financial Accounts endpoints.
+* If exactly 2 lines are supplied, then line items must balance to 0.
+* If more than 2 lines are supplied, then the line items where the `coaKey` is not the restricted bank account must sum to the amount of the line item where the `coaKey` is the restricted bank account.
+
+Request Example (two lines):
+
+```json
+[
+	{
+	  "postingDate": "2025-04-01",
+	  "basis": ["cash"],
+	  "memo": "Memo",
+	  "type": "Transaction",
+	  "nativeTransactionId": "xxx",
+	  "lines": [
+	    {
+	      "description": "Cash out",
+	      "coaKey": "bank_01", // restricted COA key
+	      "amount": "-42"
+	    },
+	    {
+	      "description": "This is a description",
+	      "coaKey": "accounts_receivable", // non-restricted COA key
+	      "amount": "42"
+	    }
+	  ]
+	},
+	{
+	  "postingDate": "2025-04-05",
+	  "basis": ["cash"],
+	  "memo": "Memo",
+	  "type": "Transaction",
+	  "nativeTransactionId": "xxx",
+	  "lines": [
+	    {
+	      "description": "Cash out",
+	      "coaKey": "bank_01", // restricted COA key
+	      "amount": "-500"
+	    },
+	    {
+	      "description": "This is a description",
+	      "coaKey": "accounts_receivable", // non-restricted COA key
+	      "amount": "500"
+	    }
+	  ]
+	}
+]
+```
+
+Request Example (more than two lines):
+
+```json
+[
+  {
+	  "postingDate": "2025-04-01",
+	  "basis": [
+	    "cash"
+	  ],
+	  "memo": "Memo",
+	  "type": "Transaction",
+	  "nativeTransactionId": "xxx",
+	  "lines": [
+	    {
+	      "description": "Cash out",
+	      "coaKey": "bank_01", // restricted COA key
+	      "amount": "90" // total amount
+	    },
+	    {
+	      "description": "This is description 1",
+	      "coaKey": "accounts_receivable", // non-restricted COA key
+	      "amount": "40" // total amount - amounts non-restricted COA key lines
+	    },
+	    {
+	      "description": "This is description 2",
+	      "coaKey": "transfer_account", // non-restricted COA key
+	      "amount": "50" // total amount - amounts non-restricted COA key lines
+	    }
+	  ]
+	}
+]
+```
+
+Response Example:
+
+```json
+[
+    "txn_xxx"
+]
+```
+
+***
+
+<br />

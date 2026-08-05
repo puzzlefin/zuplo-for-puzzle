@@ -1,0 +1,58 @@
+---
+sidebar_label: Payroll
+---
+
+# Payroll
+
+<br />
+
+This guide explains how to use the Puzzle API to create and manage payrolls. Partners can provision company-level resources (departments, locations, benefits, workers) and then post payrolls for those workers.
+
+***
+
+## Workflow Overview
+
+1. **Authenticate**
+
+   * Complete the OAuth flow
+   * Exchange the code for access/refresh tokens
+   * Call `GET /me` to obtain the Puzzle company ID
+
+2. **Create a Payroll Account**
+
+   * `POST /companies/{id}/accounts` with `type = "Payroll"`
+     * Maps to the payroll account(s) in your system. This call creates the account in the company’s Chart of Accounts (COA).
+
+3. **Provision Resources**
+
+   * `POST /companies/{id}/departments`
+     * Create all departments that exist in your system and may appear on payroll or that employees/contractors can belong to. Example: Engineering.
+   * `POST /companies/{id}/locations`
+     * Create all locations that employees/contractors can be tied to. Example: San Francisco.
+   * `POST /companies/{id}/benefits`
+     * Create benefits that can appear on payroll for employees and/or contractors. Example: 401K, Healthcare.
+   * `POST /companies/{id}/employees` (requires department & location)
+     * Create all employees that exist in your system.
+   * `POST /companies/{id}/contractors` (department optional)
+     * Create all contractors that exist in your system.
+
+4. **Create Payrolls**
+
+   * `POST /companies/{id}/payroll`
+   * Each payroll must include at least one employee or contractor compensation
+
+5. **Get Payrolls and Other Resources**
+
+   * Call `GET` endpoints (`/accounts`, `/departments`, `/locations`, `/benefits`, `/workers`) to fetch IDs
+   * `GET /companies/{id}/payrolls/{payrollId}`
+
+> Updates to departments, locations, benefits, employees, contractors, or payrolls are not currently supported.
+
+***
+
+## Common Workflows
+
+* **Employee-only payroll:** Create employee, then post payroll with `employeeCompensations`
+* **Contractor-only payroll:** Create contractor, then post payroll with `contractorCompensations`
+* **Mixed payroll:** Include both employees and contractors in the same payroll
+* **Off-cycle payroll:** Set `isOffCycle: true`

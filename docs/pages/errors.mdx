@@ -1,0 +1,64 @@
+---
+sidebar_label: Errors
+---
+
+# Errors
+
+<br />
+
+### Error Response
+
+If an error occurs during a request, the response will be in the following format:
+
+```json
+{
+    "errors": [
+        {
+            "message": "jwt expired", // Human-readable error message
+            "code": "UNAUTHENTICATED", // Standard code, see list below
+            "errorContext": [
+                 {
+                     "field": "vendorId",
+                     "value": "ven_abc123"
+                 }
+             ]
+        }
+    ]
+}
+
+```
+
+### Error Context
+
+Some errors include an optional `errorContext` array with additional details about what caused the error. The shape of each entry depends on the error type:
+
+**Input errors** (`BAD_USER_INPUT`, `RESOURCE_NOT_FOUND`) — identifies the invalid field:
+
+| Field   | Type     | Description                          |
+| ------- | -------- | ------------------------------------ |
+| `field` | `string` | The name of the invalid input field  |
+| `value` | `string` | The value that was rejected (if any) |
+
+**Resource state errors** (`FORBIDDEN`, `RESOURCE_GONE`, `RESOURCE_LOCKED`, `RESOURCE_PROCESSING`) — identifies the affected resource:
+
+| Field          | Type     | Description                                      |
+| -------------- | -------- | ------------------------------------------------ |
+| `resourceType` | `string` | The type of the resource (e.g. `vendor`, `bill`) |
+| `resourceId`   | `string` | The external ID of the resource                  |
+
+> `errorContext` is omitted from the response when there is no additional context to provide (e.g. `UNAUTHENTICATED`, `INTERNAL_SERVER_ERROR`).
+
+### Error Reference
+
+The following is a list of all possible errors in the Puzzle API:
+
+| HTTP Status Code | Error Code              | Description                                                                                                                                                |
+| ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400              | `BAD_USER_INPUT`        | The input provided is invalid. This can include missing fields, invalid values, etc.                                                                       |
+| 401              | `UNAUTHENTICATED`       | The authentication credentials provided are missing, invalid, or expired.                                                                                  |
+| 403              | `FORBIDDEN`             | You do not have permission to the requested resource.                                                                                                      |
+| 404              | `RESOURCE_NOT_FOUND`    | No resource exists for the given ID.                                                                                                                       |
+| 409              | `RESOURCE_PROCESSING`   | The requested resource has not finished syncing in Puzzle. If this error occurs, try the request again later.                                              |
+| 410              | `RESOURCE_GONE`         | A resource exists for the given ID, but it cannot be accessed. This is likely due to the resource being removed by the user in Puzzle.                     |
+| 422              | `RESOURCE_LOCKED`       | A resource exists for the given ID, but it cannot be updated. This is likely due to the resource being deactivated or locked by the user in Puzzle.        |
+| 500              | `INTERNAL_SERVER_ERROR` | An unexpected error has occurred on our end. Try the request again later, but if the error persists, please reach out to Puzzle support ([api@puzzle.io](mailto:api@puzzle.io)). |

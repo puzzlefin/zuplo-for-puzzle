@@ -1,0 +1,41 @@
+---
+sidebar_label: Scopes
+---
+
+# Scopes
+
+Scopes define which endpoints your application has access to. You will specify your scopes when the user authorizes your application via the /oauth/authorize endpoint.
+
+## Available Scopes
+
+<br />
+
+| Scope                          | Description                                   |
+| ------------------------------ | --------------------------------------------- |
+| `read:company`                 | Grants read-only access to company data.      |
+| `write:company`                | Allows creating or updating company info.     |
+| `write:account`                | Allows creating financial accounts.           |
+| `write:transaction`            | Allows creating transactions.                 |
+| `write:account_balance`        | Allows creating financial account balances.   |
+| `write:benefit`                | Allows creating company benefit policies.     |
+| `write:department`             | Allows creating departments.                  |
+| `write:location`               | Allows creating office locations.             |
+| `write:worker`                 | Allows creating employees and contractors.    |
+| `write:payroll`                | Allows creating payrolls.                     |
+| `write:journal`                | Allows creating and updating journal entries. |
+| `write:bill`                   | Allows creating bills.                        |
+| `write:customer`               | Allows creating customers.                    |
+| `write:integration_connection` | Allows creating integration connections.      |
+| `write:invoice`                | Allows creating invoices.                     |
+| `write:product`                | Allows creating products.                     |
+| `write:request`                | Allows creating requests.                     |
+| `write:task`                   | Allows creating tasks.                        |
+| `write:vendor`                 | Allows creating vendors.                      |
+
+<br />
+
+If no scopes are provided, the read-only scopes (`offline_access`, `read:company`) will be used by default.
+
+<br />
+
+<br />

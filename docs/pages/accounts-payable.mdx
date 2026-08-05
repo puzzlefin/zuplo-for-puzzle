@@ -1,0 +1,159 @@
+---
+sidebar_label: Accounts Payable
+---
+
+# Accounts Payable
+
+<br />
+
+## Prerequisites
+
+* **Auth**: Bearer token in the `Authorization` header
+  `Authorization: Bearer <token>`
+* **Scopes**:
+  * Read operations: `read:company`
+  * Write bill: `write:bill`
+  * **Vendor** management: `read:company` (list) and `write:vendor` (create)
+
+***
+
+## Endpoints Overview
+
+| Area                      | Method & Path                               | Scope          | Notes                                                                                    |
+| ------------------------- | ------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| **Bills – List**          | `GET /company/{id}/bills`                   | `read:company` | Filtering, sorting, pagination supported                                                 |
+| **Bills – Get**           | `GET /company/{id}/bills/{billId}`          | `read:company` | Fetch a single bill                                                                      |
+| **Bills – Create**        | `POST /company/{id}/bills`                  | `write:bill`   | Default **Draft**; set `shouldPost: true` + **`vendorId` required** to create **Posted** |
+| **Bills – Update**        | `POST /company/{id}/bills/{billId}`         | `write:bill`   | Full overwrite; cannot update a **Posted** bill                                          |
+| **Bills – Update Status** | `PATCH /company/{id}/bills/{billId}/status` | `write:bill`   | Allowed: **Draft → Posted**, **Posted → Voided**                                         |
+| **Vendors – List**        | `GET /company/{id}/vendors`                 | `read:company` | Filter by status/type/1099, pagination                                                   |
+| **Vendors – Create**      | `POST /company/{id}/vendor`                 | `write:vendor` | Create a vendor to obtain a `vendorId`                                                   |
+
+***
+
+## Vendor prerequisite
+
+Bills that are **Posted** must include a valid `vendorId`. If you don’t already have a vendor for the supplier:
+
+1. **Check for an existing vendor**
+
+```bash
+curl -X GET "https://staging.southparkdata.com/rest/v0/company/co_123/vendors"
+-H "Authorization: Bearer $TOKEN"
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "ven_5pqyx1Ejl91KBpIDAy3SvJ",
+      "permaName": "example",
+      "name": "Example, Inc.",
+      "is1099Vendor": false
+    }
+  ]
+}
+```
+
+2. **Create a vendor (if none exists)**
+
+```bash
+curl -X POST "https://staging.southparkdata.com/rest/v0/company/co_123/vendor"
+-H "Authorization: Bearer $TOKEN"
+-H "Content-Type: application/json"
+--data '{
+    "name": "Acme Cloud",
+    "is1099Vendor": false,
+    "description": "Primary cloud provider",
+    "type": "Business",
+    "status": "Active"
+  }'
+```
+
+Response:
+
+```json
+{
+  "id": "ven_abc123",
+  "permaName": "acme-cloud",
+  "name": "Acme Cloud",
+  "is1099Vendor": false,
+  "type": "Business",
+  "status": "Active"
+}
+```
+
+> Use the returned `id` (e.g., `ven_abc123`) as `vendorId` when creating or posting a bill.
+
+***
+
+## Status Lifecycle
+
+* **Create**: Bills are **Draft** by default.
+* **Create as Posted**: set `shouldPost: true` **and** include a valid `vendorId`.
+* **Transitions**: `Draft → Posted`, `Posted → Voided`
+* `currentness` is date-derived (`Current` / `Overdue`) and separate from workflow/payment `status`.
+
+***
+
+## Example Flows
+
+### Create a Posted bill (with vendor check)
+
+1. Look up or create a vendor (see **Vendor prerequisite** above) and capture `vendorId`.
+2. Create the bill with `shouldPost: true`:
+
+```bash
+curl -X POST "https://staging.southparkdata.com/rest/v0/company/co_123/bills"
+-H "Authorization: Bearer $TOKEN"
+-H "Content-Type: application/json"
+--data '{
+    "nativeId": "ext-789",
+    "vendorId": "ven_abc123",
+    "description": "October cloud services",
+    "issueDate": "2025-10-01",
+    "dueDate": "2025-10-15",
+    "shouldPost": true,
+    "lines": [
+      {
+        "amount": "500.00",
+        "currency": "USD",
+        "coaKey": "accounts_payable",
+        "description": "Compute & Storage"
+      }
+    ]
+  }'
+```
+
+### Post an existing Draft bill
+
+```bash
+curl -X PATCH "https://staging.southparkdata.com/rest/v0/company/co_123/bills/bil_xyz/status"
+-H "Authorization: Bearer $TOKEN"
+-H "Content-Type: application/json"
+--data '{ "status": "Posted" }'
+```
+
+### Void a Posted bill
+
+```bash
+curl -X PATCH "https://staging.southparkdata.com/rest/v0/company/co_123/bills/bil_xyz/status"
+-H "Authorization: Bearer $TOKEN"
+-H "Content-Type: application/json"
+--data '{ "status": "Voided" }'
+```
+
+***
+
+## Common Patterns
+
+* **Vendor prerequisite**: To **post** a bill (create as Posted or transition Draft → Posted), a valid `vendorId` is required. Use `GET /company/{id}/vendors` to find one or `POST /company/{id}/vendor` to create one.
+* **Full overwrite**: partial updates are **not supported**.
+* **Cannot update a Posted bill**.
+* **Provide all required fields** on update, including `issueDate`, and a **full** `lines` array.
+* **(Re)post a Draft on update**: set `shouldPost: true` and ensure `vendorId` is present.
+* **Amounts as strings**; `currency` must be `"USD"`.
+* **COA keys**: `lines[].coaKey` must exist in the company’s Chart of Accounts (`GET /company/{id}/chartOfAccounts`).
+* **Classifications**: When updating, include `class` and `segment` for each classification item.

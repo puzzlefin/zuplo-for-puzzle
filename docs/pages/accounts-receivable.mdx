@@ -1,0 +1,691 @@
+---
+sidebar_label: Accounts Receivable
+---
+
+# Accounts Receivable
+
+<br />
+
+This guide describes the API model and recommended integration patterns for creating and managing **Accounts Receivable (Invoices)**. The guide explains payload structure, lifecycle rules and example requests/responses.
+
+> **Note:** All requests require appropriate authentication and oauth scopes. To write customers, products and invoices, you will need respectively the `write:customer`, `write:product` and `write:invoices` scopes.
+
+## 1. Workflow Overview
+
+> **Note:** To simplify, we'll use the invoice created at this section 1.1 on the following sections!
+
+This workflow covers how to create an Invoice record, make updates and post it to the General Ledger.
+
+### 1.1 Creating an Invoice
+
+1. Create a customer (or retrieve) via the Customers API → obtain `customerId`.
+   * Call `POST /customers` to create a new customer.
+   * Call `GET /customers` to retrieve customers.
+2. Create a product (or retrieve) via the Product API → obtain `productId`. (optional)
+   * Call `POST /products` to create a new product.
+   * Call `GET /products` to retrieve products.
+3. Create an invoice — usually created initially with `status: Draft`.
+   * Call `POST /invoices` with a customerId obtained from the customer API.
+     * `productId` is optional, but can be retrieved from the products API. If a productName is provided instead, a new product will be created automatically.
+
+Payload
+
+```json
+{
+  "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+  "issueDate": "2025-07-09",
+  "dueDate": "2025-07-31",
+  "nativeId": "INV-2025-0001",
+  "description": "Invoice for July 2025",
+  "status": "Draft",
+  "lines": [
+    {
+      "amount": 1000.0,
+      "coaKey": "transaction_income",
+      "quantity": 2,
+      "unitPrice": 500.0,
+      "description": "Monthly subscription fee",
+      "schedule": {
+        "postingMethod": "automatically",
+        "dateRange": {
+          "fromInclusive": "2025-08-25",
+          "toInclusive": "2025-08-25"
+        }
+      },
+      "classifications": [
+        {
+          "class": "Department",
+          "segment": "Engineering"
+        }
+      ],
+      "productId": "prod_0gu8SAAxre6nfhftUkJNaO"
+    }
+  ]
+}
+```
+
+Response
+
+```json
+{
+    "id": "inv_7DszWvsdx0zUjBuMUT9DcU",
+    "createdAt": "2025-09-08T13:45:34.522Z",
+    "updatedAt": "2025-09-08T13:45:34.724Z",
+    "removedAt": null,
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "dueDate": "2025-07-31",
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "amount": {
+        "amount": "1000.00",
+        "currency": "USD"
+    },
+    "lines": [
+        {
+            "id": "iln_5hZDLQxo6ZS77aAW2VeuJH",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T13:45:34.522Z",
+            "updatedAt": "2025-09-08T13:45:34.784Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "1000.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_0gu8SAAxre6nfhftUkJNaO",
+            "description": "Monthly subscription fee",
+            "unitPrice": "500.00"
+        }
+    ],
+    "status": "Draft",
+    "contractId": "ctr_3rNWeVrmJOQ1anZj4110YZ"
+}
+```
+
+### 1.1 Adding lines to an existing invoice
+
+Make a `PUT /invoices/${invoiceId}` request. You should use the same payload that was used when creating invoices and add the ids to the invoice lines that were already created. In our previous response, our line had the id `iln_5hZDLQxo6ZS77aAW2VeuJH`.
+
+Payload
+
+```json
+{
+  "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+  "issueDate": "2025-07-09",
+  "dueDate": "2025-07-31",
+  "nativeId": "INV-2025-0001",
+  "description": "Invoice for July 2025",
+  "status": "Draft",
+  "lines": [
+    {
+      "id": "iln_5hZDLQxo6ZS77aAW2VeuJH", // this is the existing line
+      "amount": 1000.0,
+      "coaKey": "transaction_income",
+      "quantity": 2,
+      "unitPrice": 500.0,
+      "description": "Monthly subscription fee",
+      "schedule": {
+        "postingMethod": "automatically",
+        "dateRange": {
+          "fromInclusive": "2025-08-25",
+          "toInclusive": "2025-08-25"
+        }
+      },
+      "classifications": [
+        {
+          "class": "Department",
+          "segment": "Engineering"
+        }
+      ],
+      "productId": "prod_0gu8SAAxre6nfhftUkJNaO"
+    },
+    {
+      "amount": 1000.0, // this is a new line
+      "coaKey": "transaction_income",
+      "quantity": 2,
+      "unitPrice": 500.0,
+      "description": "This is a new line",
+      "schedule": {
+        "postingMethod": "automatically",
+        "dateRange": {
+          "fromInclusive": "2025-08-25",
+          "toInclusive": "2025-08-25"
+        }
+      },
+      "classifications": [
+        {
+          "class": "Department",
+          "segment": "Engineering"
+        }
+      ],
+      "productName": "This is a new line!"
+    }
+  ]
+}
+```
+
+Response
+
+```json
+{
+    "id": "inv_7DszWvsdx0zUjBuMUT9DcU",
+    "createdAt": "2025-09-08T13:45:34.522Z",
+    "updatedAt": "2025-09-08T14:38:09.361Z",
+    "removedAt": null,
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "dueDate": "2025-07-31",
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "amount": {
+        "amount": "1500.00",
+        "currency": "USD"
+    },
+    "lines": [
+        {
+            "id": "iln_5hZDLQxo6ZS77aAW2VeuJH",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T14:36:50.932Z",
+            "updatedAt": "2025-09-08T14:38:09.580Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "1000.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_0gu8SAAxre6nfhftUkJNaO",
+            "description": "Monthly subscription fee",
+            "unitPrice": "500.00"
+        },
+        {
+            "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T14:38:09.361Z",
+            "updatedAt": "2025-09-08T14:38:09.832Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "500.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_5d1fkrldj9IBvc6fqIc6oB",
+            "description": "This is a new line!",
+            "unitPrice": "500.00"
+        }
+    ],
+    "status": "Draft",
+    "contractId": "ctr_3rNWeVrmJOQ1anZj4110YZ"
+}
+```
+
+### 1.2 Removing lines from an invoice
+
+Make a `PUT /invoices/${invoiceId}` request. You should use the same payload that was used when creating invoices. Add the ids to the lines you want to keep and omit the lines you want removed. Our invoice currently has two lines: `iln_5hZDLQxo6ZS77aAW2VeuJH` and `iln_6AN6HVXgcnxeSxItAjRZYA`. Let's remove `iln_5hZDLQxo6ZS77aAW2VeuJH` by omitting it on the payload.
+
+Payload
+
+```json
+{
+  "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+  "issueDate": "2025-07-09",
+  "dueDate": "2025-07-31",
+  "nativeId": "INV-2025-0001",
+  "description": "Invoice for July 2025",
+  "status": "Draft",
+  "lines": [
+    {
+      "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+      "amount": 1000.0,
+      "coaKey": "transaction_income",
+      "quantity": 2,
+      "unitPrice": 500.0,
+      "description": "This is a new line",
+      "schedule": {
+        "postingMethod": "automatically",
+        "dateRange": {
+          "fromInclusive": "2025-08-25",
+          "toInclusive": "2025-08-25"
+        }
+      },
+      "classifications": [
+        {
+          "class": "Department",
+          "segment": "Engineering"
+        }
+      ],
+      "productName": "This is a new line!"
+    }
+  ]
+}
+```
+
+Response
+
+```json
+{
+    "id": "inv_7DszWvsdx0zUjBuMUT9DcU",
+    "createdAt": "2025-09-08T13:45:34.522Z",
+    "updatedAt": "2025-09-08T14:38:09.361Z",
+    "removedAt": null,
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "dueDate": "2025-07-31",
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "amount": {
+        "amount": "1500.00",
+        "currency": "USD"
+    },
+    "lines": [
+        {
+            "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T14:38:09.361Z",
+            "updatedAt": "2025-09-08T14:38:09.832Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "500.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_5d1fkrldj9IBvc6fqIc6oB",
+            "description": "This is a new line!",
+            "unitPrice": "500.00"
+        }
+    ],
+    "status": "Draft",
+    "contractId": "ctr_3rNWeVrmJOQ1anZj4110YZ"
+}
+```
+
+### 1.3 Posting the invoice to the general ledger
+
+Make a `PUT /invoices/${invoiceId}` request. Update the status from `Draft` to `Posted`. Remember to keep the lines you would like on your invoice.
+
+Payload
+
+```json
+{
+  "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+  "issueDate": "2025-07-09",
+  "dueDate": "2025-07-31",
+  "nativeId": "INV-2025-0001",
+  "description": "Invoice for July 2025",
+  "status": "Draft",
+  "lines": [
+    {
+      "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+      "amount": 1000.0,
+      "coaKey": "transaction_income",
+      "quantity": 2,
+      "unitPrice": 500.0,
+      "description": "This is a new line",
+      "schedule": {
+        "postingMethod": "automatically",
+        "dateRange": {
+          "fromInclusive": "2025-08-25",
+          "toInclusive": "2025-08-25"
+        }
+      },
+      "classifications": [
+        {
+          "class": "Department",
+          "segment": "Engineering"
+        }
+      ],
+      "productName": "This is a new line!"
+    }
+  ]
+}
+```
+
+Response
+
+```json
+{
+    "id": "inv_7DszWvsdx0zUjBuMUT9DcU",
+    "createdAt": "2025-09-08T13:45:34.522Z",
+    "updatedAt": "2025-09-08T14:48:14.031Z",
+    "removedAt": null,
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "dueDate": "2025-07-31",
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "amount": {
+        "amount": "500.00",
+        "currency": "USD"
+    },
+    "lines": [
+        {
+            "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T14:38:09.361Z",
+            "updatedAt": "2025-09-08T14:48:13.924Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "500.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_5d1fkrldj9IBvc6fqIc6oB",
+            "description": "Monthly subscription fee",
+            "unitPrice": "500.00"
+        }
+    ],
+    "status": "Posted",
+    "contractId": "ctr_3rNWeVrmJOQ1anZj4110YZ"
+}
+```
+
+Once a payment is recorded against the invoice (via Transactions API / Journal Entries) the status will transition to `Paid`.
+
+### 1.4 Voiding an Invoice
+
+Make a `PUT /invoices/${invoiceId}` request. Update the status from `Posted` to `Voided`. New entries will be created on the general ledger reversing the financial impact of the invoice.
+
+Payload
+
+```json
+{
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "lines": [
+        {
+            "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+            "amount": 500.0, // this is a new line
+            "coaKey": "transaction_income",
+            "quantity": 2,
+            "unitPrice": 500.0,
+            "description": "Monthly subscription fee",
+            "schedule": {
+                "postingMethod": "automatically",
+                "dateRange": {
+                    "fromInclusive": "2025-08-25",
+                    "toInclusive": "2025-08-25"
+                }
+            },
+            "classifications": [
+                {
+                    "class": "Department",
+                    "segment": "Engineering"
+                }
+            ],
+            "productName": "This is a new line!"
+        }
+    ],
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "status": "Voided",
+    "dueDate": "2025-07-31"
+}
+```
+
+Response
+
+```json
+{
+    "id": "inv_7DszWvsdx0zUjBuMUT9DcU",
+    "createdAt": "2025-09-08T13:45:34.522Z",
+    "updatedAt": "2025-09-08T14:48:14.031Z",
+    "removedAt": null,
+    "customerId": "cus_5tbxuB83GGIYeVcKpIEpBT",
+    "issueDate": "2025-07-09",
+    "dueDate": "2025-07-31",
+    "nativeId": "INV-2025-0001",
+    "description": "Invoice for July 2025",
+    "amount": {
+        "amount": "500.00",
+        "currency": "USD"
+    },
+    "lines": [
+        {
+            "id": "iln_6AN6HVXgcnxeSxItAjRZYA",
+            "classifications": [
+                {
+                    "class": "Department",
+                    "description": null,
+                    "segments": [
+                        {
+                            "segment": "Engineering",
+                            "description": "Engineering"
+                        }
+                    ]
+                }
+            ],
+            "createdAt": "2025-09-08T14:38:09.361Z",
+            "updatedAt": "2025-09-08T14:48:13.924Z",
+            "removedAt": null,
+            "amount": {
+                "amount": "500.00",
+                "currency": "USD"
+            },
+            "coaKey": "transaction_income",
+            "quantity": "2",
+            "productId": "prod_5d1fkrldj9IBvc6fqIc6oB",
+            "description": "Monthly subscription fee",
+            "unitPrice": "500.00"
+        }
+    ],
+    "status": "Voided",
+    "contractId": "ctr_3rNWeVrmJOQ1anZj4110YZ"
+}
+```
+
+### 3. Field Definitions
+
+#### `customerId` (string, required)
+
+The ID of the customer being billed. Must reference a customer created via the **Customers API**.
+
+#### `dueDate` (ISO date, optional)
+
+When the invoice payment due. This is used for payment matching.
+
+#### `issueDate` (ISO date, required)
+
+Invoice issue/creation date. This is used for payment matching. It has a priority lower than dueDate.
+
+#### `nativeId` (string, recommended, idempotency)
+
+Your system’s invoice identifier.
+
+#### `description` (string, optional)
+
+#### `status` (enum: `Deleted`, `Draft`, `Paid`, `Posted`, `Voided`)
+
+* Typical create default: `Draft`
+* **Editable statuses:** `Draft`, `Posted`, `Paid`.
+* `Deleted` and `Voided` are **final states** that cannot be edited.
+
+#### `lines` (array, required, at least one)
+
+Each invoice line represents a billed product or service.
+
+***
+
+### Invoice Line Fields
+
+#### `amount` (number, required)
+
+Monetary amount for the line.
+`amount = quantity * unitPrice`
+
+The API accepts explicit `amount`. If mismatch with `quantity * unitPrice` occurs, the API may validate or normalize depending on implementation (see *Validation rules*).
+
+#### `coaKey` (string, required)
+
+Chart-of-Accounts key where revenue (or other account) for this line will post. For accurate General Ledger posting, supply the correct COA key.
+
+#### `quantity` (number, optional)
+
+Number of units.
+
+#### `unitPrice` (number, optional)
+
+Price per unit.
+
+#### `description` (string, optional)
+
+Line-level description.
+
+#### `schedule` (object, optional)
+
+Determines how and when revenue (or lines) are posted/recognized.
+
+* **`postingMethod`** (string, required when `schedule` present)
+  * `automatically` — platform will post/recognize according to `dateRange` without user action.
+  * `userConfirm` — platform will create the scheduled item but requires user/API confirmation to post to GL.
+
+* **`dateRange`** (object, required when scheduling)
+  * `fromInclusive` (ISO date) — start date of the posting window.
+  * `toInclusive` (ISO date) — end date of the posting window.
+
+* **`classifications`** (array, optional)
+  * Accounting classifications (metadata) such as department, location. Each classification is `{ "class": "<className>", "segment": "<segmentName>" }`.
+
+* **`productId`** (string, optional)
+  * If present, must reference an existing product created via the **Products API**.
+
+* **`productName`** (string, alternative to productId, optional)
+  * If productId is omitted and productName is provided, the platform will create a product (returning a productId in the invoice response). This is useful for quick integrations where product catalog is not pre-provisioned.
+
+## 4. Payments & Reconciliation
+
+Payments and reconciliation ensure invoices are marked as **Paid** once customer transactions are applied. The system provides both **automatic matching** and **manual override** workflows. Currently manual override is not supported on this API.
+
+### 4.1 Matching Criteria
+
+The system uses two matching strategies in order of priority:
+
+#### A. Native ID Matching (Highest Priority)
+
+* **Use Case:** For integrated platforms (e.g., Stripe) that manage both invoicing and payments.
+* **Method:** Matches invoices and payments via their **native IDs**.
+* **Behavior:** Provides a *perfect match* when the same `nativeId` exists on both invoice and payment records.
+
+#### B. Criteria-Based Matching (Fallback)
+
+If **native ID matching** fails, the system falls back to criteria-based rules.
+
+**Required Matches:**
+
+* **Amount:** `transaction.amount = invoice.total` (exact)
+* **Currency:** `transaction.currency = invoice.currency` (exact)
+* **Account:** `transaction.accountId != invoice.accountId` (must differ)
+* **Date Range:** Transaction date must fall within the invoice’s valid date window.
+* **No Existing Match:** Transaction must not already be linked to another invoice.
+
+**Optional Matches (ranking factors):**
+
+* **Customer ID:** `transaction.detail.customerId = invoice.customerId`
+* **Terms:** Text matching on invoice description, customer name, or external ID
+* **Date Proximity:** Closeness to invoice `dueDate` or `issueDate`
+
+### 4.4 Status Transitions via Payments
+
+The system determines an invoice’s status based on applied payment amounts:
+
+* **Partial Application:** Invoice remains `Posted` until full balance is covered.
+* **Full Application:** If `appliedTotal >= invoiceTotal`, status updates to **Paid**.
+
+## 5 Invoice Status & Transitions
+
+Invoices progress through a defined **status lifecycle** that governs when they can be posted, paid, voided, or deleted. These transitions also determine when ledger events are emitted and when associated entities (payments) are updated.
+
+### 5.1 Invoice Statuses
+
+* **Draft**\
+  Initial state when an invoice is created. Editable and not yet posted to the general ledger.
+
+* **Posted**\
+  Invoice has been validated and sent to the general ledger. Revenue and receivable entries are created.
+
+* **Paid**\
+  Invoice is fully reconciled through payments. Triggered automatically by payment matching.
+
+* **Voided**\
+  Invoice is canceled after posting. Reverses ledger entries and cleans up associated data.
+
+* **Deleted**\
+  Soft-deleted invoice. Line items, matches, and contracts are removed. No further transitions allowed.
+
+### 5.2 Valid Status Transitions
+
+The following table summarizes allowed invoice status changes:
+
+| Current Status | Allowed Transitions To               |
+| -------------- | ------------------------------------ |
+| **Draft**      | Posted, Voided                       |
+| **Deleted**    | *No transitions*                     |
+| **Posted**     | Voided, Paid, DateChangeInProgress   |
+| **Paid**       | DateChangeInProgress, Posted, Voided |
+| **Voided**     | DateChangeInProgress                 |
+
+**Notes:**
+
+* Once in **Deleted**, invoices cannot transition further.
+* **Voided** invoices may temporarily enter `DateChangeInProgress` for cleanup.
+* **Paid** invoices can revert to `Posted` or transition to `Voided` depending on adjustments.
+* `DateChangeInProgress` is a transient state used only during date modifications.
