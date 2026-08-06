@@ -1,0 +1,45 @@
+# Keeps the portal's copy of the OpenAPI spec current (API-3832).
+#
+# The reference pages are prerendered at build time from docs/openapi.json, so
+# the portal only shows a new version of the API after it rebuilds. The gateway
+# regenerates its spec on every deploy but cannot reach into this repo, so this
+# workflow polls: fetch the spec, and if it differs from what is committed,
+# commit it. That commit triggers the Zuplo build, which redeploys the portal.
+#
+# Committing only on change means the spec's history is a readable series of
+# commits — when the API's shape changed, and how — rather than hourly noise.
+name: Sync OpenAPI spec
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly, off the hour to avoid the scheduling rush
+  workflow_dispatch: # allow a manual sync after a gateway deploy
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-openapi-spec
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the spec and commit it if it changed
+        working-directory: docs
+        run: |
+          set -euo pipefail
+          node fetch-spec.mjs
+          if git diff --quiet -- openapi.json; then
+            echo "Spec unchanged."
+            exit 0
+          fi
+          paths=$(node -e "console.log(Object.keys(require('./openapi.json').paths ?? {}).length)")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add openapi.json
+          git commit -m "Sync OpenAPI spec from the gateway (${paths} paths)"
+          git push
