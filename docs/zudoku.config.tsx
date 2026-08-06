@@ -68,10 +68,11 @@ const config: ZudokuConfig = {
   redirects: [{ from: "/", to: "/welcome" }],
   apis: [
     {
-      // The gateway generates this spec from its Zod contracts at startup,
-      // so the reference docs always match what the API actually serves.
-      type: "url",
-      input: "https://api.puzzle.io/rest/v0/openapi.json",
+      // Downloaded from the gateway by fetch-spec.mjs before each build (see
+      // that file). Reading it as a local file lets the endpoint routes
+      // prerender, so deep links render immediately and crawlers see content.
+      type: "file",
+      input: "./openapi.json",
       path: "api",
       options: {
         // Hidden until the spec carries securitySchemes and a sandbox

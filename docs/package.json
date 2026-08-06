@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "zudoku dev --zuplo",
-    "build": "zudoku build --zuplo"
+    "dev": "node fetch-spec.mjs && zudoku dev --zuplo",
+    "build": "node fetch-spec.mjs && zudoku build --zuplo"
   },
   "dependencies": {
     "react": "^19",
