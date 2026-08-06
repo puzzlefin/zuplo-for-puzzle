@@ -1,4 +1,5 @@
 import type { ZudokuConfig } from "zudoku";
+import { analyticsPlugin } from "./plugins/analytics";
 
 /**
  * Developer Portal Configuration
@@ -66,6 +67,7 @@ const config: ZudokuConfig = {
     },
   ],
   redirects: [{ from: "/", to: "/welcome" }],
+  plugins: [analyticsPlugin()],
   apis: [
     {
       // Downloaded from the gateway by fetch-spec.mjs before each build (see
