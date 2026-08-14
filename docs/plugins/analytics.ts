@@ -1,16 +1,26 @@
 /**
  * Portal analytics (API-3841).
  *
- * Zudoku is a single-page app, so a page view only happens once per session as
- * far as the browser is concerned. The framework emits a `location` event on
- * every route change instead, which is what this subscribes to.
+ * Zudoku is a single-page app, so the browser only counts one page view per
+ * session. The framework emits a `location` event on every route change
+ * instead, which is what this subscribes to.
  *
- * The destination is deliberately pluggable. Until we have the PostHog project
- * key and host, `capture` logs to the console: that is enough to verify that
- * events fire where we expect and carry the properties we want. Swapping in
- * PostHog is then a change to one function — see `capture` below.
+ * Events go to PostHog, which is where the rest of Puzzle's web behavior
+ * already lands, so docs traffic can be joined with product behavior in the
+ * warehouse rather than sitting in its own silo.
+ *
+ * The plugin is dormant until it is configured: with no
+ * ZUDOKU_PUBLIC_POSTHOG_KEY set, nothing is sent anywhere and events are
+ * logged to the console instead. Turning analytics on is therefore setting two
+ * environment variables in the Zuplo portal, not a code change — and a missing
+ * or wrong key can never quietly send partner browsing data somewhere
+ * unintended.
  */
+import posthog from "posthog-js";
 import { createPlugin } from "zudoku";
+
+const KEY = process.env.ZUDOKU_PUBLIC_POSTHOG_KEY;
+const HOST = process.env.ZUDOKU_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
 
 export type AnalyticsEvent =
   | "$pageview"
@@ -23,23 +33,36 @@ export type AnalyticsEvent =
 
 type Properties = Record<string, unknown>;
 
-/**
- * The single seam between this portal and whatever collects the events.
- *
- * To send to PostHog: add `posthog-js` to package.json, initialize it in the
- * plugin's `initialize` hook with ZUDOKU_PUBLIC_POSTHOG_KEY and
- * ZUDOKU_PUBLIC_POSTHOG_HOST, and replace the body of this function with
- * `posthog.capture(event, properties)`.
- */
+let enabled = false;
+
+/** The single seam between this portal and whatever collects the events. */
 export const capture = (event: AnalyticsEvent, properties: Properties = {}) => {
-  // eslint-disable-next-line no-console
-  console.info("[analytics]", event, properties);
+  if (!enabled) {
+    // eslint-disable-next-line no-console
+    console.info("[analytics:unconfigured]", event, properties);
+    return;
+  }
+  posthog.capture(event, properties);
 };
 
 /** Paths that belong to the generated API reference rather than a guide. */
 const isReferencePath = (path: string) => path === "/api" || path.startsWith("/api/");
 
 export const analyticsPlugin = createPlugin(() => ({
+  initialize: () => {
+    if (!KEY) return;
+    posthog.init(KEY, {
+      api_host: HOST,
+      // The portal has no sign-in, so every visitor is anonymous and there is
+      // nothing to identify. Pageviews are captured from the framework's
+      // route-change event below, not by posthog-js, which would only see the
+      // first load of a single-page app.
+      capture_pageview: false,
+      capture_pageleave: true,
+      persistence: "localStorage+cookie",
+    });
+    enabled = true;
+  },
   events: {
     location: ({ from, to }) => {
       capture("$pageview", {

@@ -8,10 +8,11 @@
     "build": "node fetch-spec.mjs && zudoku build --zuplo"
   },
   "dependencies": {
-    "react": "^19",
-    "react-dom": "^19",
     "@mdx-js/react": "3.0.1",
     "@zuplo/zudoku-plugin-monetization": "^0.0",
+    "posthog-js": "^1.417.0",
+    "react": "^19",
+    "react-dom": "^19",
     "zudoku": "^0.77"
   },
   "devDependencies": {
