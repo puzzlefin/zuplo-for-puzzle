@@ -228,9 +228,32 @@
       "get": {
         "operationId": "companiesApi",
         "summary": "Get companies",
-        "description": "Returns a list of companies the calling user has access to.\n\nRequired scope: read:company",
+        "description": "Modern client credentials return a paginated list of companies authorized through the API connection's firms. The limit defaults to 100 and is capped at 100. OAuth and upstream-user authentication preserve the existing unpaginated response and ignore limit and cursor.\n\nRequired for modern client credentials: read:company",
         "tags": [
           "Company"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Page size for modern client credentials; ignored for OAuth and upstream users."
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pagination cursor for modern client credentials; ignored for OAuth and upstream users."
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -285,10 +308,15 @@
                           "reportingCurrency"
                         ]
                       }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
-                    "companies"
+                    "companies",
+                    "nextCursor"
                   ]
                 }
               }
@@ -10073,12 +10101,16 @@
                           },
                           "percentDollarVolumeCategorized": {
                             "type": "number"
+                          },
+                          "percentDollarVolumeConfirmed": {
+                            "type": "number"
                           }
                         },
                         "required": [
                           "timePeriod",
                           "dataCompletenessLevel",
-                          "percentDollarVolumeCategorized"
+                          "percentDollarVolumeCategorized",
+                          "percentDollarVolumeConfirmed"
                         ]
                       }
                     }
@@ -12679,166 +12711,158 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "entries": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "basis": {
-                          "type": "array",
-                          "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "basis": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "memo": {
+                      "type": "string"
+                    },
+                    "postingDate": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Calendar date, YYYY-MM-DD"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "Journal",
+                        "Transaction"
+                      ]
+                    },
+                    "nativeTransactionId": {
+                      "type": "string"
+                    },
+                    "createdFor": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "amount": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Arbitrary-precision decimal, serialized as a string"
+                          },
+                          "coaKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Chart-of-accounts key"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "manualJournalEntryId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "classifications": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "class": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "segment": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "class",
+                                "segment"
+                              ]
+                            }
+                          },
+                          "userDefinedMetadata": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "nullable": true
+                          },
+                          "vendorId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "vendorName": {
+                            "type": "string"
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "customerName": {
                             "type": "string"
                           }
                         },
-                        "memo": {
-                          "type": "string"
-                        },
-                        "postingDate": {
-                          "type": "string",
-                          "minLength": 1,
-                          "description": "Calendar date, YYYY-MM-DD"
-                        },
-                        "type": {
+                        "required": [
+                          "amount",
+                          "coaKey",
+                          "description"
+                        ]
+                      }
+                    },
+                    "document": {
+                      "type": "object",
+                      "properties": {
+                        "documentType": {
                           "type": "string",
                           "enum": [
-                            "Journal",
-                            "Transaction"
+                            "Receipt",
+                            "Bill",
+                            "Invoice"
                           ]
                         },
-                        "nativeTransactionId": {
-                          "type": "string"
+                        "fileName": {
+                          "type": "string",
+                          "minLength": 1
                         },
-                        "createdFor": {
-                          "type": "string"
+                        "contentType": {
+                          "type": "string",
+                          "minLength": 1
                         },
-                        "lines": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Partner-facing external identifier"
-                              },
-                              "amount": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Arbitrary-precision decimal, serialized as a string"
-                              },
-                              "coaKey": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Chart-of-accounts key"
-                              },
-                              "description": {
-                                "type": "string"
-                              },
-                              "manualJournalEntryId": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Partner-facing external identifier"
-                              },
-                              "classifications": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "class": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "segment": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    }
-                                  },
-                                  "required": [
-                                    "class",
-                                    "segment"
-                                  ]
-                                }
-                              },
-                              "userDefinedMetadata": {
-                                "type": "object",
-                                "additionalProperties": {},
-                                "nullable": true
-                              },
-                              "vendorId": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Partner-facing external identifier"
-                              },
-                              "vendorName": {
-                                "type": "string"
-                              },
-                              "customerId": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Partner-facing external identifier"
-                              },
-                              "customerName": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "amount",
-                              "coaKey",
-                              "description"
-                            ]
-                          }
+                        "base64File": {
+                          "type": "string",
+                          "minLength": 1
                         },
-                        "document": {
-                          "type": "object",
-                          "properties": {
-                            "documentType": {
-                              "type": "string",
-                              "enum": [
-                                "Receipt",
-                                "Bill",
-                                "Invoice"
-                              ]
-                            },
-                            "fileName": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "contentType": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "base64File": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "nativeDocumentId": {
-                              "type": "string",
-                              "minLength": 1
-                            }
-                          },
-                          "required": [
-                            "documentType",
-                            "fileName",
-                            "contentType",
-                            "base64File",
-                            "nativeDocumentId"
-                          ]
+                        "nativeDocumentId": {
+                          "type": "string",
+                          "minLength": 1
                         }
                       },
                       "required": [
-                        "basis",
-                        "memo",
-                        "postingDate",
-                        "lines"
+                        "documentType",
+                        "fileName",
+                        "contentType",
+                        "base64File",
+                        "nativeDocumentId"
                       ]
                     }
-                  }
-                },
-                "required": [
-                  "entries"
-                ]
+                  },
+                  "required": [
+                    "basis",
+                    "memo",
+                    "postingDate",
+                    "lines"
+                  ]
+                }
               }
             }
           }
@@ -13330,6 +13354,18 @@
                             ],
                             "nullable": true
                           },
+                          "actorType": {
+                            "type": "string",
+                            "enum": [
+                              "SYSTEM_ACTOR",
+                              "TRAIN_ACTOR",
+                              "USER_ACTOR",
+                              "USER_ACTOR_VIA_AI",
+                              "ADMIN_ACTOR",
+                              "AI_ACTOR"
+                            ],
+                            "nullable": true
+                          },
                           "vendorId": {
                             "type": "string",
                             "minLength": 1,
@@ -13447,6 +13483,7 @@
                           "coaKey",
                           "accountId",
                           "status",
+                          "actorType",
                           "vendorId",
                           "customerId",
                           "documents",
@@ -13883,6 +13920,18 @@
                       ],
                       "nullable": true
                     },
+                    "actorType": {
+                      "type": "string",
+                      "enum": [
+                        "SYSTEM_ACTOR",
+                        "TRAIN_ACTOR",
+                        "USER_ACTOR",
+                        "USER_ACTOR_VIA_AI",
+                        "ADMIN_ACTOR",
+                        "AI_ACTOR"
+                      ],
+                      "nullable": true
+                    },
                     "vendorId": {
                       "type": "string",
                       "minLength": 1,
@@ -14000,6 +14049,7 @@
                     "coaKey",
                     "accountId",
                     "status",
+                    "actorType",
                     "vendorId",
                     "customerId",
                     "documents",
@@ -17965,6 +18015,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "progress": {
+                            "type": "integer",
+                            "nullable": true
+                          },
                           "order": {
                             "type": "integer",
                             "nullable": true
@@ -17981,6 +18035,7 @@
                           "month",
                           "description",
                           "supplementalInfo",
+                          "progress",
                           "order"
                         ]
                       }
