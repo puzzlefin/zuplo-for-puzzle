@@ -224,6 +224,260 @@
         }
       }
     },
+    "/firm/audit-logs": {
+      "get": {
+        "operationId": "firmAuditLogs",
+        "summary": "Get firm activity",
+        "description": "Timestamped audit log across every company the calling connection reaches through its active firm authorizations. Firm-scoped on purpose: a firm with many clients does not have to make one request per client. Each row carries its own companyId, matching the ids returned by GET /companies.\n\nstartDate and endDate are interpreted in UTC, unlike the per-company endpoints which use the company's timezone, because the feed can span companies in different zones.\n\ncompanyIds narrows to a subset of the firm's companies; naming a company the connection is not authorized for returns 403 rather than an empty result.\n\nRequired: read:company",
+        "tags": [
+          "Firm"
+        ],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Calendar date, YYYY-MM-DD"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Calendar date, YYYY-MM-DD"
+            }
+          },
+          {
+            "name": "companyIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Partner-facing external identifier"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Partner-facing external identifier"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "userIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Partner-facing external identifier"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Partner-facing external identifier"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "itemTypes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "activityTypes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "actorTypes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DATE_ASC",
+                "DATE_DESC"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "companyId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "ISO 8601 timestamp"
+                          },
+                          "itemType": {
+                            "type": "string"
+                          },
+                          "activityType": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "actorType": {
+                            "type": "string"
+                          },
+                          "itemDescription": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "detail": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Partner-facing external identifier"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "email": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email"
+                            ],
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "companyId",
+                          "createdAt",
+                          "itemType",
+                          "activityType",
+                          "actorType",
+                          "itemDescription",
+                          "detail",
+                          "user"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/companies": {
       "get": {
         "operationId": "companiesApi",
