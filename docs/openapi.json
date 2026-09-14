@@ -482,7 +482,7 @@
       "get": {
         "operationId": "companiesApi",
         "summary": "Get companies",
-        "description": "Modern client credentials return a paginated list of companies authorized through the API connection's firms. The limit defaults to 100 and is capped at 100. OAuth and upstream-user authentication preserve the existing unpaginated response and ignore limit and cursor.\n\nRequired for modern client credentials: read:company",
+        "description": "Modern client credentials return a paginated list of companies authorized through the API connection's firms. The limit defaults to 100 and is capped at 100. Pass include=integration_health to add a batched health summary for each company's logical integrations. OAuth and upstream-user authentication preserve the existing unpaginated response and ignore limit, cursor, and include.\n\nRequired for modern client credentials: read:company",
         "tags": [
           "Company"
         ],
@@ -506,6 +506,18 @@
               "type": "string",
               "minLength": 1,
               "description": "Pagination cursor for modern client credentials; ignored for OAuth and upstream users."
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "integration_health"
+              ],
+              "description": "Adds integrationHealth to each company for modern client credentials; ignored for OAuth and upstream users."
             }
           }
         ],
@@ -551,6 +563,161 @@
                             "minLength": 3,
                             "maxLength": 3,
                             "description": "ISO 4217 currency code"
+                          },
+                          "integrationHealth": {
+                            "type": "object",
+                            "properties": {
+                              "overallStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "HEALTHY",
+                                  "DEGRADED",
+                                  "ACTION_REQUIRED",
+                                  "NO_INTEGRATIONS"
+                                ]
+                              },
+                              "counts": {
+                                "type": "object",
+                                "properties": {
+                                  "healthy": {
+                                    "type": "integer"
+                                  },
+                                  "degraded": {
+                                    "type": "integer"
+                                  },
+                                  "disconnected": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "healthy",
+                                  "degraded",
+                                  "disconnected"
+                                ]
+                              },
+                              "integrations": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "category": {
+                                      "type": "string",
+                                      "enum": [
+                                        "BANKING",
+                                        "CREDIT_CARD",
+                                        "PAYMENT_PROCESSOR",
+                                        "PAYROLL",
+                                        "ACCOUNTING",
+                                        "OTHER"
+                                      ]
+                                    },
+                                    "provider": {
+                                      "type": "string",
+                                      "enum": [
+                                        "ARLO",
+                                        "BILL_DOT_COM",
+                                        "BREX",
+                                        "CAPTABLE",
+                                        "CARTA",
+                                        "CENTRAL",
+                                        "DEEL",
+                                        "DIRECT_INGEST",
+                                        "EVERY",
+                                        "EXPENSIFY",
+                                        "FINCH",
+                                        "FINICITY",
+                                        "GUSTO",
+                                        "HELLO_FRANKLIN",
+                                        "HUMAN",
+                                        "MEOW",
+                                        "MERCURY",
+                                        "PLAID",
+                                        "QUICK_BOOKS",
+                                        "RAMP",
+                                        "RHO",
+                                        "RIPPLING",
+                                        "S_WORKS",
+                                        "SALESFORCE",
+                                        "SLACK",
+                                        "STRIPE",
+                                        "SVB_OFX",
+                                        "SYNDER",
+                                        "TRI_NET",
+                                        "ZAPRITE"
+                                      ]
+                                    },
+                                    "displayName": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "OK",
+                                        "TEMPORARY_OUTAGE",
+                                        "DISCONNECTED",
+                                        "UNKNOWN"
+                                      ]
+                                    },
+                                    "actionRequired": {
+                                      "type": "boolean"
+                                    },
+                                    "lastSyncAttemptAt": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "ISO 8601 timestamp",
+                                      "nullable": true
+                                    },
+                                    "lastSyncStatus": {
+                                      "type": "string",
+                                      "enum": [
+                                        "SUCCEEDED",
+                                        "FAILED",
+                                        "HAS_WARNINGS",
+                                        "IN_PROGRESS"
+                                      ],
+                                      "nullable": true
+                                    },
+                                    "errorCode": {
+                                      "type": "string",
+                                      "enum": [
+                                        "LOGIN_REQUIRED",
+                                        "ACCESS_REVOKED",
+                                        "INSUFFICIENT_PERMISSIONS",
+                                        "EXTERNAL_ERROR",
+                                        "INTERNAL_ERROR",
+                                        "TOO_MUCH_DATA",
+                                        "NO_ACCOUNTS",
+                                        "MFA_NOT_SUPPORTED",
+                                        "INVALID_MFA",
+                                        "ITEM_LOCKED",
+                                        "ITEM_NOT_SUPPORTED",
+                                        "INSTITUTION_ERROR",
+                                        "INVALID_INPUT",
+                                        "ADD_ON_PAYMENT_NOT_COMPLETED",
+                                        "NATIVE_SOURCE_AVAILABLE",
+                                        "AUTO_DISCONNECTED_AFTER_MIGRATION"
+                                      ],
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "category",
+                                    "provider",
+                                    "displayName",
+                                    "status",
+                                    "actionRequired",
+                                    "lastSyncAttemptAt",
+                                    "lastSyncStatus",
+                                    "errorCode"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "overallStatus",
+                              "counts",
+                              "integrations"
+                            ]
                           }
                         },
                         "required": [
