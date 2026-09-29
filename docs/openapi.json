@@ -224,6 +224,505 @@
         }
       }
     },
+    "/firm/accuracy-checks": {
+      "get": {
+        "operationId": "firmAccuracyChecks",
+        "summary": "Get firm accuracy checks",
+        "description": "Items Puzzle has flagged as potentially incorrect or needing review, across every company the calling connection reaches through its active firm authorizations. Each row carries its own companyId, matching the ids returned by GET /companies.\n\nThese are deterministic rule checks, not AI output: duplicate transactions, a descriptor with multiple vendors, a vendor with multiple categories, invoices paid with a non-zero balance, uncategorized invoice or bill lines, unbilled recurring revenue, and known issues. `type` is the reason the check fired and `createdAt` is when it first fired.\n\nDefaults to open checks (status ACTIVE) so a dashboard sees what still needs attention; pass statuses to widen. Ordered by magnitude so the largest items come first.\n\ncompanyIds narrows to a subset of the firm's companies; naming a company the connection is not authorized for returns 403 rather than an empty result.\n\nRequired: read:company",
+        "tags": [
+          "Firm"
+        ],
+        "parameters": [
+          {
+            "name": "companyIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Partner-facing external identifier"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Partner-facing external identifier"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "groups",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "BILL",
+                    "INVOICE",
+                    "TRANSACTION"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "BILL",
+                      "INVOICE",
+                      "TRANSACTION"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "TRANSACTION_DESCRIPTOR_MULTIPLE_VENDORS",
+                    "TRANSACTION_VENDOR_MULTIPLE_CATEGORIES",
+                    "TRANSACTION_DUPLICATE",
+                    "INVOICE_PAID_WITH_NON_ZERO_BALANCE",
+                    "INVOICE_UNCATEGORIZED_LINES",
+                    "UNBILLED_RECURRING_REVENUE",
+                    "BILL_UNCATEGORIZED_LINES",
+                    "KNOWN_ISSUE"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "TRANSACTION_DESCRIPTOR_MULTIPLE_VENDORS",
+                      "TRANSACTION_VENDOR_MULTIPLE_CATEGORIES",
+                      "TRANSACTION_DUPLICATE",
+                      "INVOICE_PAID_WITH_NON_ZERO_BALANCE",
+                      "INVOICE_UNCATEGORIZED_LINES",
+                      "UNBILLED_RECURRING_REVENUE",
+                      "BILL_UNCATEGORIZED_LINES",
+                      "KNOWN_ISSUE"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVE",
+                    "COMPLETED",
+                    "DISMISSED",
+                    "PROCESSING"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "COMPLETED",
+                      "DISMISSED",
+                      "PROCESSING"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "companyId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "BILL",
+                              "INVOICE",
+                              "TRANSACTION"
+                            ]
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "TRANSACTION_DESCRIPTOR_MULTIPLE_VENDORS",
+                              "TRANSACTION_VENDOR_MULTIPLE_CATEGORIES",
+                              "TRANSACTION_DUPLICATE",
+                              "INVOICE_PAID_WITH_NON_ZERO_BALANCE",
+                              "INVOICE_UNCATEGORIZED_LINES",
+                              "UNBILLED_RECURRING_REVENUE",
+                              "BILL_UNCATEGORIZED_LINES",
+                              "KNOWN_ISSUE"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "COMPLETED",
+                              "DISMISSED",
+                              "PROCESSING"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "ISO 8601 timestamp"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "ISO 8601 timestamp"
+                          },
+                          "uniqueKey": {
+                            "type": "string"
+                          },
+                          "magnitude": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "companyId",
+                          "group",
+                          "type",
+                          "status",
+                          "createdAt",
+                          "updatedAt",
+                          "uniqueKey",
+                          "magnitude"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firm/ai-close-items": {
+      "get": {
+        "operationId": "firmAiCloseItems",
+        "summary": "Get firm AI Close items",
+        "description": "AI Close checklist items across every company the calling connection reaches through its active firm authorizations, by close month. Distinct from GET /firm/accuracy-checks: this is the AI-assisted close surface, where accuracy checks are deterministic rules.\n\nArchived and removed items are excluded — the feed is what is open, not the history. Items carry status, assignee, approver and due date where set.\n\ncursor is an insertOrder high-water mark rather than an opaque token.\n\ncompanyIds narrows to a subset of the firm's companies; naming a company the connection is not authorized for returns 403 rather than an empty result.\n\nRequired: read:company",
+        "tags": [
+          "Firm"
+        ],
+        "parameters": [
+          {
+            "name": "companyIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Partner-facing external identifier"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Partner-facing external identifier"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "statuses",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "ToDo",
+                    "InProgress",
+                    "NeedsAction",
+                    "WaitingOnClient",
+                    "ReadyForReview",
+                    "Done"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "ToDo",
+                      "InProgress",
+                      "NeedsAction",
+                      "WaitingOnClient",
+                      "ReadyForReview",
+                      "Done"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "companyId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Partner-facing external identifier"
+                          },
+                          "month": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "Manual",
+                              "AiAssist"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ToDo",
+                              "InProgress",
+                              "NeedsAction",
+                              "WaitingOnClient",
+                              "ReadyForReview",
+                              "Done"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dueDate": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Calendar date, YYYY-MM-DD",
+                            "nullable": true
+                          },
+                          "completedAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "ISO 8601 timestamp",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "ISO 8601 timestamp"
+                          },
+                          "assignee": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Partner-facing external identifier"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "email": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email"
+                            ],
+                            "nullable": true
+                          },
+                          "approver": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Partner-facing external identifier"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "email": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email"
+                            ],
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "companyId",
+                          "month",
+                          "type",
+                          "status",
+                          "name",
+                          "description",
+                          "dueDate",
+                          "completedAt",
+                          "createdAt",
+                          "assignee",
+                          "approver"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/firm/audit-logs": {
       "get": {
         "operationId": "firmAuditLogs",
@@ -495,7 +994,7 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
-              "description": "Page size for modern client credentials; ignored for OAuth and upstream users."
+              "description": "Page size for modern client credentials (default 100, maximum 100); ignored for OAuth and upstream users."
             }
           },
           {
@@ -517,7 +1016,7 @@
               "enum": [
                 "integration_health"
               ],
-              "description": "Adds integrationHealth to each company for modern client credentials; ignored for OAuth and upstream users."
+              "description": "Adds integrationHealth to each company. Requires puzzle-client-id, Authorization: Bearer <client secret>, read:company, an active firm authorization and a nonremoved firm-client link. Ignored for OAuth and upstream users."
             }
           }
         ],
@@ -609,7 +1108,8 @@
                                         "PAYROLL",
                                         "ACCOUNTING",
                                         "OTHER"
-                                      ]
+                                      ],
+                                      "description": "Provider-based categories: BANKING = Plaid, Finicity, Mercury, Meow, Rho, SVB OFX; CREDIT_CARD = Brex, Ramp; PAYMENT_PROCESSOR = Stripe; PAYROLL = Central, Deel, Every, Finch, Gusto, HelloFranklin, Human, Rippling, TriNet; ACCOUNTING = QuickBooks; OTHER = Arlo, BillDotCom, Captable, Carta, DirectIngest, Expensify, SWorks, Salesforce, Slack, Synder, Zaprite. Categories describe the provider, not individual account types (including Plaid accounts)."
                                     },
                                     "provider": {
                                       "type": "string",
@@ -656,7 +1156,8 @@
                                         "TEMPORARY_OUTAGE",
                                         "DISCONNECTED",
                                         "UNKNOWN"
-                                      ]
+                                      ],
+                                      "description": "DISCONNECTED requires action: a disconnected connection, an authentication error (LOGIN_REQUIRED, ACCESS_REVOKED, INSUFFICIENT_PERMISSIONS, MFA_NOT_SUPPORTED, INVALID_MFA, ITEM_LOCKED), pending add-on payment, or active import start-date setup. Other connection errors and failed or warning syncs are TEMPORARY_OUTAGE. Without these conditions, no sync history is UNKNOWN; successful or in-progress syncs are OK. There is no freshness cutoff for successful syncs, so OK does not guarantee current data."
                                     },
                                     "actionRequired": {
                                       "type": "boolean"
@@ -664,7 +1165,7 @@
                                     "lastSyncAttemptAt": {
                                       "type": "string",
                                       "minLength": 1,
-                                      "description": "ISO 8601 timestamp",
+                                      "description": "Start of the latest recorded sync attempt, not the last successful data ingestion.",
                                       "nullable": true
                                     },
                                     "lastSyncStatus": {
@@ -675,7 +1176,8 @@
                                         "HAS_WARNINGS",
                                         "IN_PROGRESS"
                                       ],
-                                      "nullable": true
+                                      "nullable": true,
+                                      "description": "Status of the latest recorded sync; in-progress attempts older than three hours report FAILED."
                                     },
                                     "errorCode": {
                                       "type": "string",
@@ -694,10 +1196,12 @@
                                         "INSTITUTION_ERROR",
                                         "INVALID_INPUT",
                                         "ADD_ON_PAYMENT_NOT_COMPLETED",
+                                        "USER_EPOCH_REQUIRED",
                                         "NATIVE_SOURCE_AVAILABLE",
                                         "AUTO_DISCONNECTED_AFTER_MIGRATION"
                                       ],
-                                      "nullable": true
+                                      "nullable": true,
+                                      "description": "Safe connection or setup reason when available; raw provider messages are not exposed. USER_EPOCH_REQUIRED means the user must choose the import start date during the active setup window."
                                     }
                                   },
                                   "required": [
@@ -717,7 +1221,8 @@
                               "overallStatus",
                               "counts",
                               "integrations"
-                            ]
+                            ],
+                            "description": "Health of recorded, nonremoved connections, including disconnected feeds. Replacement rows for the same Plaid item or named provider feed collapse to the newest row; separate Plaid items and unnamed connections remain distinct. Provider mapping coverage does not guarantee sync telemetry: push or manual integrations can have no sync runs and report UNKNOWN with null sync fields. An empty integration list reports NO_INTEGRATIONS."
                           }
                         },
                         "required": [
@@ -732,7 +1237,8 @@
                     },
                     "nextCursor": {
                       "type": "string",
-                      "nullable": true
+                      "nullable": true,
+                      "description": "Pass as cursor on the next request, retaining include=integration_health; null ends pagination."
                     }
                   },
                   "required": [
@@ -12605,7 +13111,7 @@
       "post": {
         "operationId": "upsertJournalEntry",
         "summary": "Create Journal Entry",
-        "description": "Required scope: write:journal\n\nJournal entries are the entries made in a company's ledger accounts as a way of recording financial impact. The line items for each journal entry should balance to 0.\n\nCreate Journal Entries endpoint creates a Journal Entry into our Gateway and not on our Ledger. Once the Gateway receives a Journal Entry, you get an OK response. Ledger Journal Entries are created async and can be retrieved through the Get Journal Entries endpoint.\n\nPuzzle journal entries are immutable. This means that when an update is made, 2 additional journal entries get created - one to reverse the original journal entry and another to reflect the updates. Reversal journal entries can be identified by their description field - they will have descriptions matching \"Reversal of {{journal entry id}}\".\n\nAll Puzzle companies have both cash and accrual journal entries; they are distinct populations.",
+        "description": "Required scope: write:journal\n\nJournal entries are the entries made in a company's ledger accounts as a way of recording financial impact. The line items for each journal entry should balance to 0.\n\nCreate Journal Entries endpoint creates a Journal Entry into our Gateway and not on our Ledger. Once the Gateway receives a Journal Entry, you get an OK response. By default, entries are submitted for posting asynchronously and can then be retrieved through the Get Journal Entries endpoint. Set posted to false on a Journal entry to save a draft for review and posting in Puzzle. The posted option is per entry for both single and bulk creation and defaults to true. Drafts do not emit ledger events and are excluded from Get Journal Entries until posted. Transaction entries do not support posted: false. Reusing document.nativeDocumentId returns the existing entry without updating or posting it.\n\nPosted Puzzle journal entries are immutable. This means that when an update is made, 2 additional journal entries get created - one to reverse the original journal entry and another to reflect the updates. Reversal journal entries can be identified by their description field - they will have descriptions matching \"Reversal of {{journal entry id}}\".\n\nAll Puzzle companies have both cash and accrual journal entries; they are distinct populations.",
         "tags": [
           "JournalEntry"
         ],
@@ -12649,6 +13155,10 @@
                       "Journal",
                       "Transaction"
                     ]
+                  },
+                  "posted": {
+                    "type": "boolean",
+                    "description": "Defaults to true. Set false with type Journal to save a draft for review and posting in Puzzle. Drafts are excluded from the public journal list until posted. Reusing document.nativeDocumentId returns the existing entry without changing its posting status. Transaction entries do not support drafts."
                   },
                   "nativeTransactionId": {
                     "type": "string"
@@ -13031,7 +13541,8 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "Partner"
+                              "MANUAL",
+                              "PARTNER"
                             ]
                           },
                           "lines": {
@@ -13110,7 +13621,7 @@
       "post": {
         "operationId": "upsertJournalEntries",
         "summary": "Create Journal Entry",
-        "description": "Required scope: write:journal\n\nJournal entries are the entries made in a company's ledger accounts as a way of recording financial impact. The line items for each journal entry should balance to 0.\n\nCreate Journal Entries endpoint creates a Journal Entry into our Gateway and not on our Ledger. Once the Gateway receives a Journal Entry, you get an OK response. Ledger Journal Entries are created async and can be retrieved through the Get Journal Entries endpoint.\n\nPuzzle journal entries are immutable. This means that when an update is made, 2 additional journal entries get created - one to reverse the original journal entry and another to reflect the updates. Reversal journal entries can be identified by their description field - they will have descriptions matching \"Reversal of {{journal entry id}}\".\n\nAll Puzzle companies have both cash and accrual journal entries; they are distinct populations.",
+        "description": "Required scope: write:journal\n\nJournal entries are the entries made in a company's ledger accounts as a way of recording financial impact. The line items for each journal entry should balance to 0.\n\nCreate Journal Entries endpoint creates a Journal Entry into our Gateway and not on our Ledger. Once the Gateway receives a Journal Entry, you get an OK response. By default, entries are submitted for posting asynchronously and can then be retrieved through the Get Journal Entries endpoint. Set posted to false on a Journal entry to save a draft for review and posting in Puzzle. The posted option is per entry for both single and bulk creation and defaults to true. Drafts do not emit ledger events and are excluded from Get Journal Entries until posted. Transaction entries do not support posted: false. Reusing document.nativeDocumentId returns the existing entry without updating or posting it.\n\nPosted Puzzle journal entries are immutable. This means that when an update is made, 2 additional journal entries get created - one to reverse the original journal entry and another to reflect the updates. Reversal journal entries can be identified by their description field - they will have descriptions matching \"Reversal of {{journal entry id}}\".\n\nAll Puzzle companies have both cash and accrual journal entries; they are distinct populations.",
         "tags": [
           "JournalEntries"
         ],
@@ -13156,6 +13667,10 @@
                         "Journal",
                         "Transaction"
                       ]
+                    },
+                    "posted": {
+                      "type": "boolean",
+                      "description": "Defaults to true. Set false with type Journal to save a draft for review and posting in Puzzle. Drafts are excluded from the public journal list until posted. Reusing document.nativeDocumentId returns the existing entry without changing its posting status. Transaction entries do not support drafts."
                     },
                     "nativeTransactionId": {
                       "type": "string"
@@ -13787,6 +14302,357 @@
                             ],
                             "nullable": true
                           },
+                          "categorization": {
+                            "type": "object",
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "CATEGORIZED",
+                                  "UNCATEGORIZED",
+                                  "PARTIALLY_CATEGORIZED"
+                                ]
+                              },
+                              "confirmationStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "CONFIRMED",
+                                  "UNCONFIRMED",
+                                  "PARTIALLY_CONFIRMED"
+                                ]
+                              },
+                              "confirmedAt": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "ISO 8601 timestamp",
+                                "nullable": true
+                              },
+                              "lastHumanConfirmation": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AI",
+                                      "MANUAL",
+                                      "USER_DIRECTED_AI",
+                                      "AUTOMATION",
+                                      "UNKNOWN"
+                                    ]
+                                  },
+                                  "actorType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SYSTEM_ACTOR",
+                                      "TRAIN_ACTOR",
+                                      "USER_ACTOR",
+                                      "USER_ACTOR_VIA_AI",
+                                      "ADMIN_ACTOR",
+                                      "AI_ACTOR"
+                                    ],
+                                    "nullable": true
+                                  },
+                                  "userId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "Partner-facing external identifier",
+                                    "nullable": true
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "ISO 8601 timestamp",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "actorType",
+                                  "userId",
+                                  "at"
+                                ],
+                                "nullable": true
+                              },
+                              "detailsConfirmationStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "CONFIRMED",
+                                  "UNCONFIRMED",
+                                  "PARTIALLY_CONFIRMED"
+                                ]
+                              },
+                              "details": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "detailId": {
+                                      "type": "string"
+                                    },
+                                    "coaKey": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "CATEGORIZED",
+                                        "UNCATEGORIZED",
+                                        "PARTIALLY_CATEGORIZED"
+                                      ]
+                                    },
+                                    "confirmationStatus": {
+                                      "type": "string",
+                                      "enum": [
+                                        "CONFIRMED",
+                                        "UNCONFIRMED",
+                                        "PARTIALLY_CONFIRMED"
+                                      ]
+                                    },
+                                    "confirmedAt": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "ISO 8601 timestamp",
+                                      "nullable": true
+                                    },
+                                    "attributionStatus": {
+                                      "type": "string",
+                                      "enum": [
+                                        "COMPLETE",
+                                        "PARTIAL",
+                                        "UNKNOWN"
+                                      ]
+                                    },
+                                    "current": {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "AI",
+                                            "MANUAL",
+                                            "USER_DIRECTED_AI",
+                                            "AUTOMATION",
+                                            "UNKNOWN"
+                                          ]
+                                        },
+                                        "actorType": {
+                                          "type": "string",
+                                          "enum": [
+                                            "SYSTEM_ACTOR",
+                                            "TRAIN_ACTOR",
+                                            "USER_ACTOR",
+                                            "USER_ACTOR_VIA_AI",
+                                            "ADMIN_ACTOR",
+                                            "AI_ACTOR"
+                                          ],
+                                          "nullable": true
+                                        },
+                                        "userId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "Partner-facing external identifier",
+                                          "nullable": true
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "ISO 8601 timestamp",
+                                          "nullable": true
+                                        },
+                                        "coaKey": {
+                                          "type": "string",
+                                          "nullable": true
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "actorType",
+                                        "userId",
+                                        "at",
+                                        "coaKey"
+                                      ]
+                                    },
+                                    "original": {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "AI",
+                                            "MANUAL",
+                                            "USER_DIRECTED_AI",
+                                            "AUTOMATION",
+                                            "UNKNOWN"
+                                          ]
+                                        },
+                                        "actorType": {
+                                          "type": "string",
+                                          "enum": [
+                                            "SYSTEM_ACTOR",
+                                            "TRAIN_ACTOR",
+                                            "USER_ACTOR",
+                                            "USER_ACTOR_VIA_AI",
+                                            "ADMIN_ACTOR",
+                                            "AI_ACTOR"
+                                          ],
+                                          "nullable": true
+                                        },
+                                        "userId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "Partner-facing external identifier",
+                                          "nullable": true
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "ISO 8601 timestamp",
+                                          "nullable": true
+                                        },
+                                        "coaKey": {
+                                          "type": "string",
+                                          "nullable": true
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "actorType",
+                                        "userId",
+                                        "at",
+                                        "coaKey"
+                                      ],
+                                      "nullable": true
+                                    },
+                                    "lastHumanConfirmation": {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "AI",
+                                            "MANUAL",
+                                            "USER_DIRECTED_AI",
+                                            "AUTOMATION",
+                                            "UNKNOWN"
+                                          ]
+                                        },
+                                        "actorType": {
+                                          "type": "string",
+                                          "enum": [
+                                            "SYSTEM_ACTOR",
+                                            "TRAIN_ACTOR",
+                                            "USER_ACTOR",
+                                            "USER_ACTOR_VIA_AI",
+                                            "ADMIN_ACTOR",
+                                            "AI_ACTOR"
+                                          ],
+                                          "nullable": true
+                                        },
+                                        "userId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "Partner-facing external identifier",
+                                          "nullable": true
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "description": "ISO 8601 timestamp",
+                                          "nullable": true
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "actorType",
+                                        "userId",
+                                        "at"
+                                      ],
+                                      "nullable": true
+                                    },
+                                    "categoryChanges": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "source": {
+                                            "type": "string",
+                                            "enum": [
+                                              "AI",
+                                              "MANUAL",
+                                              "USER_DIRECTED_AI",
+                                              "AUTOMATION",
+                                              "UNKNOWN"
+                                            ]
+                                          },
+                                          "actorType": {
+                                            "type": "string",
+                                            "enum": [
+                                              "SYSTEM_ACTOR",
+                                              "TRAIN_ACTOR",
+                                              "USER_ACTOR",
+                                              "USER_ACTOR_VIA_AI",
+                                              "ADMIN_ACTOR",
+                                              "AI_ACTOR"
+                                            ],
+                                            "nullable": true
+                                          },
+                                          "userId": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "description": "Partner-facing external identifier",
+                                            "nullable": true
+                                          },
+                                          "at": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "description": "ISO 8601 timestamp",
+                                            "nullable": true
+                                          },
+                                          "coaKey": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "previousCoaKey": {
+                                            "type": "string",
+                                            "nullable": true
+                                          }
+                                        },
+                                        "required": [
+                                          "source",
+                                          "actorType",
+                                          "userId",
+                                          "at",
+                                          "coaKey",
+                                          "previousCoaKey"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "detailId",
+                                    "coaKey",
+                                    "status",
+                                    "confirmationStatus",
+                                    "confirmedAt",
+                                    "attributionStatus",
+                                    "current",
+                                    "original",
+                                    "lastHumanConfirmation",
+                                    "categoryChanges"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "status",
+                              "confirmationStatus",
+                              "confirmedAt",
+                              "lastHumanConfirmation",
+                              "detailsConfirmationStatus",
+                              "details"
+                            ]
+                          },
                           "vendorId": {
                             "type": "string",
                             "minLength": 1,
@@ -13905,6 +14771,7 @@
                           "accountId",
                           "status",
                           "actorType",
+                          "categorization",
                           "vendorId",
                           "customerId",
                           "documents",
@@ -14353,6 +15220,357 @@
                       ],
                       "nullable": true
                     },
+                    "categorization": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "CATEGORIZED",
+                            "UNCATEGORIZED",
+                            "PARTIALLY_CATEGORIZED"
+                          ]
+                        },
+                        "confirmationStatus": {
+                          "type": "string",
+                          "enum": [
+                            "CONFIRMED",
+                            "UNCONFIRMED",
+                            "PARTIALLY_CONFIRMED"
+                          ]
+                        },
+                        "confirmedAt": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "ISO 8601 timestamp",
+                          "nullable": true
+                        },
+                        "lastHumanConfirmation": {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "AI",
+                                "MANUAL",
+                                "USER_DIRECTED_AI",
+                                "AUTOMATION",
+                                "UNKNOWN"
+                              ]
+                            },
+                            "actorType": {
+                              "type": "string",
+                              "enum": [
+                                "SYSTEM_ACTOR",
+                                "TRAIN_ACTOR",
+                                "USER_ACTOR",
+                                "USER_ACTOR_VIA_AI",
+                                "ADMIN_ACTOR",
+                                "AI_ACTOR"
+                              ],
+                              "nullable": true
+                            },
+                            "userId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Partner-facing external identifier",
+                              "nullable": true
+                            },
+                            "at": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "ISO 8601 timestamp",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "actorType",
+                            "userId",
+                            "at"
+                          ],
+                          "nullable": true
+                        },
+                        "detailsConfirmationStatus": {
+                          "type": "string",
+                          "enum": [
+                            "CONFIRMED",
+                            "UNCONFIRMED",
+                            "PARTIALLY_CONFIRMED"
+                          ]
+                        },
+                        "details": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "detailId": {
+                                "type": "string"
+                              },
+                              "coaKey": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "CATEGORIZED",
+                                  "UNCATEGORIZED",
+                                  "PARTIALLY_CATEGORIZED"
+                                ]
+                              },
+                              "confirmationStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "CONFIRMED",
+                                  "UNCONFIRMED",
+                                  "PARTIALLY_CONFIRMED"
+                                ]
+                              },
+                              "confirmedAt": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "ISO 8601 timestamp",
+                                "nullable": true
+                              },
+                              "attributionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "COMPLETE",
+                                  "PARTIAL",
+                                  "UNKNOWN"
+                                ]
+                              },
+                              "current": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AI",
+                                      "MANUAL",
+                                      "USER_DIRECTED_AI",
+                                      "AUTOMATION",
+                                      "UNKNOWN"
+                                    ]
+                                  },
+                                  "actorType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SYSTEM_ACTOR",
+                                      "TRAIN_ACTOR",
+                                      "USER_ACTOR",
+                                      "USER_ACTOR_VIA_AI",
+                                      "ADMIN_ACTOR",
+                                      "AI_ACTOR"
+                                    ],
+                                    "nullable": true
+                                  },
+                                  "userId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "Partner-facing external identifier",
+                                    "nullable": true
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "ISO 8601 timestamp",
+                                    "nullable": true
+                                  },
+                                  "coaKey": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "actorType",
+                                  "userId",
+                                  "at",
+                                  "coaKey"
+                                ]
+                              },
+                              "original": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AI",
+                                      "MANUAL",
+                                      "USER_DIRECTED_AI",
+                                      "AUTOMATION",
+                                      "UNKNOWN"
+                                    ]
+                                  },
+                                  "actorType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SYSTEM_ACTOR",
+                                      "TRAIN_ACTOR",
+                                      "USER_ACTOR",
+                                      "USER_ACTOR_VIA_AI",
+                                      "ADMIN_ACTOR",
+                                      "AI_ACTOR"
+                                    ],
+                                    "nullable": true
+                                  },
+                                  "userId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "Partner-facing external identifier",
+                                    "nullable": true
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "ISO 8601 timestamp",
+                                    "nullable": true
+                                  },
+                                  "coaKey": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "actorType",
+                                  "userId",
+                                  "at",
+                                  "coaKey"
+                                ],
+                                "nullable": true
+                              },
+                              "lastHumanConfirmation": {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "AI",
+                                      "MANUAL",
+                                      "USER_DIRECTED_AI",
+                                      "AUTOMATION",
+                                      "UNKNOWN"
+                                    ]
+                                  },
+                                  "actorType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SYSTEM_ACTOR",
+                                      "TRAIN_ACTOR",
+                                      "USER_ACTOR",
+                                      "USER_ACTOR_VIA_AI",
+                                      "ADMIN_ACTOR",
+                                      "AI_ACTOR"
+                                    ],
+                                    "nullable": true
+                                  },
+                                  "userId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "Partner-facing external identifier",
+                                    "nullable": true
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "description": "ISO 8601 timestamp",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "actorType",
+                                  "userId",
+                                  "at"
+                                ],
+                                "nullable": true
+                              },
+                              "categoryChanges": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "AI",
+                                        "MANUAL",
+                                        "USER_DIRECTED_AI",
+                                        "AUTOMATION",
+                                        "UNKNOWN"
+                                      ]
+                                    },
+                                    "actorType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "SYSTEM_ACTOR",
+                                        "TRAIN_ACTOR",
+                                        "USER_ACTOR",
+                                        "USER_ACTOR_VIA_AI",
+                                        "ADMIN_ACTOR",
+                                        "AI_ACTOR"
+                                      ],
+                                      "nullable": true
+                                    },
+                                    "userId": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "Partner-facing external identifier",
+                                      "nullable": true
+                                    },
+                                    "at": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "ISO 8601 timestamp",
+                                      "nullable": true
+                                    },
+                                    "coaKey": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "previousCoaKey": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "source",
+                                    "actorType",
+                                    "userId",
+                                    "at",
+                                    "coaKey",
+                                    "previousCoaKey"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "detailId",
+                              "coaKey",
+                              "status",
+                              "confirmationStatus",
+                              "confirmedAt",
+                              "attributionStatus",
+                              "current",
+                              "original",
+                              "lastHumanConfirmation",
+                              "categoryChanges"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "confirmationStatus",
+                        "confirmedAt",
+                        "lastHumanConfirmation",
+                        "detailsConfirmationStatus",
+                        "details"
+                      ]
+                    },
                     "vendorId": {
                       "type": "string",
                       "minLength": 1,
@@ -14471,6 +15689,7 @@
                     "accountId",
                     "status",
                     "actorType",
+                    "categorization",
                     "vendorId",
                     "customerId",
                     "documents",
@@ -18312,6 +19531,359 @@
                   },
                   "required": [
                     "url"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/company/{id}/close-progress": {
+      "get": {
+        "operationId": "closeProgress",
+        "summary": "Get Close Progress",
+        "description": "Returns monthly and AI close checklist progress separately for the given company, month, and accounting basis. Includes account references, assigned preparer and approver, and completion attribution where recorded. Period lock status is independent of checklist completion. Sources overlap and their counts must not be summed.\n\nRequired scope: read:company",
+        "tags": [
+          "Company"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The company ID",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Partner-facing external identifier"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "basis",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cash",
+                "accrual"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "companyId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Partner-facing external identifier"
+                    },
+                    "month": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                    },
+                    "basis": {
+                      "type": "string",
+                      "enum": [
+                        "cash",
+                        "accrual"
+                      ]
+                    },
+                    "availability": {
+                      "type": "string",
+                      "enum": [
+                        "Available",
+                        "Empty",
+                        "Unavailable"
+                      ]
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "Monthly",
+                              "AiClose"
+                            ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "Available",
+                              "Empty",
+                              "Unavailable"
+                            ]
+                          },
+                          "progress": {
+                            "type": "object",
+                            "properties": {
+                              "total": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "completed": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "outstanding": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "total",
+                              "completed",
+                              "outstanding"
+                            ],
+                            "nullable": true
+                          },
+                          "reconciliations": {
+                            "type": "object",
+                            "properties": {
+                              "total": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "completed": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "outstanding": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "total",
+                              "completed",
+                              "outstanding"
+                            ],
+                            "nullable": true
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Partner-facing external identifier"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Monthly",
+                                    "AiClose"
+                                  ]
+                                },
+                                "parentId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Partner-facing external identifier",
+                                  "nullable": true
+                                },
+                                "key": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Complete",
+                                    "Incomplete",
+                                    "SystemComplete",
+                                    "ToDo",
+                                    "InProgress",
+                                    "NeedsAction",
+                                    "WaitingOnClient",
+                                    "ReadyForReview",
+                                    "Done"
+                                  ]
+                                },
+                                "account": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "Partner-facing external identifier"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "mask": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "mask"
+                                  ],
+                                  "nullable": true
+                                },
+                                "preparer": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "Partner-facing external identifier"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "email": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "email"
+                                  ],
+                                  "nullable": true
+                                },
+                                "approver": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "Partner-facing external identifier"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "email": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "email"
+                                  ],
+                                  "nullable": true
+                                },
+                                "completedAt": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "ISO 8601 timestamp",
+                                  "nullable": true
+                                },
+                                "completedBy": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "description": "Partner-facing external identifier"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "email": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "email"
+                                  ],
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "source",
+                                "parentId",
+                                "key",
+                                "description",
+                                "status",
+                                "account",
+                                "preparer",
+                                "approver",
+                                "completedAt",
+                                "completedBy"
+                              ]
+                            },
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "availability",
+                          "progress",
+                          "reconciliations",
+                          "items"
+                        ]
+                      }
+                    },
+                    "periodLock": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Locked",
+                            "Unlocked",
+                            "Pending",
+                            "Unavailable"
+                          ]
+                        },
+                        "lockedThrough": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "lockedThrough"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "companyId",
+                    "month",
+                    "basis",
+                    "availability",
+                    "sources",
+                    "periodLock"
                   ]
                 }
               }
