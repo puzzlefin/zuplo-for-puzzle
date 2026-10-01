@@ -14062,11 +14062,20 @@
       "get": {
         "operationId": "getTransactions",
         "summary": "Get Transactions",
-        "description": "Get transactions by filter\n\nRequired scope: read:company",
+        "description": "Get transactions by filter. Categorization attribution is omitted by default; pass includeCategorization=true to include it. NotCategorized includes null and company-specific uncategorized categories on both linked and unlinked transactions.\n\nRequired scope: read:company",
         "tags": [
           "Transactions"
         ],
         "parameters": [
+          {
+            "name": "includeCategorization",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Include categorization attribution and history only when \"true\"; omitted by default"
+            }
+          },
           {
             "name": "id",
             "in": "path",
@@ -14771,7 +14780,6 @@
                           "accountId",
                           "status",
                           "actorType",
-                          "categorization",
                           "vendorId",
                           "customerId",
                           "documents",
@@ -15107,11 +15115,20 @@
       "get": {
         "operationId": "getTransaction",
         "summary": "Get Transaction",
-        "description": "Get a single transaction by ID\n\nRequired scope: read:company",
+        "description": "Get a single transaction by ID. Categorization attribution is omitted by default; pass includeCategorization=true to include it.\n\nRequired scope: read:company",
         "tags": [
           "Transactions"
         ],
         "parameters": [
+          {
+            "name": "includeCategorization",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Include categorization attribution and history only when \"true\"; omitted by default"
+            }
+          },
           {
             "name": "id",
             "in": "path",
@@ -15689,7 +15706,6 @@
                     "accountId",
                     "status",
                     "actorType",
-                    "categorization",
                     "vendorId",
                     "customerId",
                     "documents",
