@@ -1846,7 +1846,6 @@
                       "Depository",
                       "Loan",
                       "Other",
-                      "PaymentProcessing",
                       "Payroll",
                       "Fintech",
                       "Sweep"
@@ -14822,7 +14821,7 @@
       "post": {
         "operationId": "createTransactions",
         "summary": "Create Transactions",
-        "description": "Create multiple transactions for a single financial account.\n\nYou can create up to 500 transactions per request\nTransactions can only be added to accounts with the following types: Depository, Credit, Investment, Loan, or PaymentProcessing\nTransactions are created asynchronously, so the response only includes a mapping of the Puzzle ID to the native ID and the status of the transaction, which will either be pending or duplicate.\npending = The data for that transaction has been saved and is currently being processed. Please allow a couple of minutes for this transaction to show up in the system.\nduplicate = There is already a transaction with that same nativeId in the system, so this transaction data was ignored.\nThe sign on the amount field depends on the account type.\nAdditional details can be found here.\nThe category field may or may not directly correspond to an account in the Chart of Accounts. It is used to help Puzzle automatically categorize this transaction. It does not guarantee a specific COA assignment.\n\nRequired scope: write:transaction",
+        "description": "Create multiple transactions for a single financial account.\n\nYou can create up to 500 transactions per request\nTransactions can only be added to accounts with the following types: Depository, Credit, Investment, or Loan\nTransactions are created asynchronously, so the response only includes a mapping of the Puzzle ID to the native ID and the status of the transaction, which will either be pending or duplicate.\npending = The data for that transaction has been saved and is currently being processed. Please allow a couple of minutes for this transaction to show up in the system.\nduplicate = There is already a transaction with that same nativeId in the system, so this transaction data was ignored.\nThe sign on the amount field depends on the account type.\nAdditional details can be found here.\nThe category field may or may not directly correspond to an account in the Chart of Accounts. It is used to help Puzzle automatically categorize this transaction. It does not guarantee a specific COA assignment.\n\nRequired scope: write:transaction",
         "tags": [
           "Transactions"
         ],
