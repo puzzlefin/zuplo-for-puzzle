@@ -11931,7 +11931,7 @@
       "post": {
         "operationId": "createTemporaryLinkToken",
         "summary": "Fetch a Link Token",
-        "description": "This authentication method has been deprecated. Please use the Authentication endpoints instead. Additional details can be found here.\n\nCreates a link token that can be used to authenticate a user when directing them to the connection flow. The token expires after 30 minutes.\n\nAfter obtaining your link token, create a link to Puzzle so the user can connect their Puzzle account.\n\n<a \n  href=\"https://staging.southparkdata.com/connect/{your_company_name}\n\t?token={link_token}\n\t&redirect_uri={your_redirect_uri}\"\n>\n  Connect your Puzzle account\n</a>\n\nThey will see your welcome page and an opportunity to log in or sign up with Puzzle.",
+        "description": "This authentication method has been deprecated. Please use the Authentication endpoints instead. Additional details can be found here.\n\nCreates a link token that can be used to authenticate a user when directing them to the connection flow. The token expires after 30 minutes.\n\nAfter obtaining your link token, create a link to Puzzle so the user can connect their Puzzle account.\n\n<a \n  href=\"https://sandbox.puzzle.io/connect/{your_company_name}\n\t?token={link_token}\n\t&redirect_uri={your_redirect_uri}\"\n>\n  Connect your Puzzle account\n</a>\n\nThey will see your welcome page and an opportunity to log in or sign up with Puzzle.",
         "tags": [
           "User"
         ],
@@ -14821,7 +14821,7 @@
       "post": {
         "operationId": "createTransactions",
         "summary": "Create Transactions",
-        "description": "Create multiple transactions for a single financial account.\n\nYou can create up to 500 transactions per request\nTransactions can only be added to accounts with the following types: Depository, Credit, Investment, or Loan\nTransactions are created asynchronously, so the response only includes a mapping of the Puzzle ID to the native ID and the status of the transaction, which will either be pending or duplicate.\npending = The data for that transaction has been saved and is currently being processed. Please allow a couple of minutes for this transaction to show up in the system.\nduplicate = There is already a transaction with that same nativeId in the system, so this transaction data was ignored.\nThe sign on the amount field depends on the account type.\nAdditional details can be found here.\nThe category field may or may not directly correspond to an account in the Chart of Accounts. It is used to help Puzzle automatically categorize this transaction. It does not guarantee a specific COA assignment.\n\nRequired scope: write:transaction",
+        "description": "Create multiple transactions for a single financial account.\n\nYou can create up to 500 transactions per request\nTransactions can only be added to accounts with the following types: Depository, Credit, Investment, or Loan\nTransactions are created asynchronously, so the response only includes a mapping of the Puzzle ID to the native ID and the status of the transaction, which will either be pending or duplicate.\npending = The data for that transaction has been saved and is currently being processed. Please allow a couple of minutes for this transaction to show up in the system.\nduplicate = There is already a transaction with that same nativeId in the system, so this transaction data was ignored.\nThe sign on the amount field depends on the account type.\nAdditional details can be found here.\nThe category field may or may not directly correspond to an account in the Chart of Accounts. It is used to help Puzzle automatically categorize this transaction. It does not guarantee a specific COA assignment.\nclassifications and customerId, on the transaction and on its splits, are validated synchronously: an invalid value rejects the whole request with a 400.\n\nRequired scope: write:transaction",
         "tags": [
           "Transactions"
         ],
@@ -14977,6 +14977,26 @@
                               },
                               "vendorPermaName": {
                                 "type": "string"
+                              },
+                              "classifications": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "class": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "segment": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "class",
+                                    "segment"
+                                  ]
+                                }
                               }
                             },
                             "required": [
