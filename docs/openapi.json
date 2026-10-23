@@ -5325,7 +5325,7 @@
       "get": {
         "operationId": "invoicesApi",
         "summary": "Get Invoices",
-        "description": "Retrieves invoices.\n\nRequired scope: read:company",
+        "description": "Retrieves invoices. Pagination accepts `count` and `after`; filter by issue date with both `from` and `to`, and by status with `statuses`. `maxResults`, `startDate`, and `endDate` are not supported.\n\nRequired scope: read:company",
         "tags": [
           "Invoices"
         ],
@@ -5530,7 +5530,8 @@
                           "issueDate": {
                             "type": "string",
                             "minLength": 1,
-                            "description": "Calendar date, YYYY-MM-DD"
+                            "description": "Calendar date, YYYY-MM-DD",
+                            "nullable": true
                           },
                           "dueDate": {
                             "type": "string",
@@ -6155,7 +6156,8 @@
                     "issueDate": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "Calendar date, YYYY-MM-DD"
+                      "description": "Calendar date, YYYY-MM-DD",
+                      "nullable": true
                     },
                     "dueDate": {
                       "type": "string",
@@ -6521,7 +6523,8 @@
                     "issueDate": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "Calendar date, YYYY-MM-DD"
+                      "description": "Calendar date, YYYY-MM-DD",
+                      "nullable": true
                     },
                     "dueDate": {
                       "type": "string",
@@ -7101,7 +7104,8 @@
                     "issueDate": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "Calendar date, YYYY-MM-DD"
+                      "description": "Calendar date, YYYY-MM-DD",
+                      "nullable": true
                     },
                     "dueDate": {
                       "type": "string",
